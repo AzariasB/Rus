@@ -1,12 +1,15 @@
 extern crate core;
 
+pub mod errors;
+
+use crate::errors::{RusError};
 use rus_core::{
-    sea_orm::{Database, DatabaseConnection},
-    Mutation, Query,
+    Mutation,
+    Query, sea_orm::{Database, DatabaseConnection},
 };
 use actix_files::Files as Fs;
 use actix_web::{
-    error, get, middleware, post, web, App, Error, HttpRequest, HttpResponse, HttpServer, Result,
+    App, error, Error, get, HttpRequest, HttpResponse, HttpServer, middleware, post, Result, web,
 };
 
 use entity::redirection;
@@ -46,6 +49,7 @@ struct CreateForm {
 async fn list(req: HttpRequest, data: web::Data<AppState>) -> Result<HttpResponse, Error> {
     let template = &data.templates;
     let conn = &data.conn;
+
 
     // get params
     let params = web::Query::<Params>::from_query(req.query_string()).unwrap();
@@ -107,8 +111,8 @@ async fn redirect(data: web::Data<AppState>, id: web::Path<String>) -> Result<Ht
 
     let redirection = Query::find_redirection_by_short_url(conn, id.into_inner())
         .await
-        .expect("could not find redirection")
-        .unwrap_or_else(|| panic!("Could not find redirection"));
+        .map_err(|err|RusError::from(err))?
+        .ok_or(RusError::NotFound)?;
 
     Ok(HttpResponse::Found().append_header(("location", redirection.long_url.to_string())).finish())
 }
