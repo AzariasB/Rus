@@ -1,0 +1,12 @@
+[package]
+name = "rus"
+version = "0.1.0"
+authors = ["AzariasB"]
+edition = "2021"
+publish = false
+
+[workspace]
+members = [".", "api", "core", "entity", "migration"]
+
+[dependencies]
+rus-api = { path = "api" }
