@@ -3,26 +3,28 @@ extern crate core;
 pub mod errors;
 
 use crate::errors::{RusError};
-use rus_core::{CreateMutation, Mutation, Query, sea_orm::{Database, DatabaseConnection}, UpdateMutation};
+use rus_core::{CreateMutation, Mutation, Query, sea_orm::{Database, DatabaseConnection}, UpdateMutation, Cache, MemoryCache};
 use actix_files::Files as Fs;
 use actix_web::{
     App, error, Error, get, HttpRequest, HttpResponse, HttpServer, post, Result, web,
 };
 
-use entity::redirection;
 use listenfd::ListenFd;
 use migration::{Migrator, MigratorTrait};
 use serde::{Deserialize, Serialize};
 use std::env;
+use std::fmt::Debug;
+use std::sync::Arc;
 use tera::Tera;
 use url::Url;
 
 const DEFAULT_REDIRECTIONS_PER_PAGE: u64 = 5;
 
 #[derive(Debug, Clone)]
-struct AppState {
+struct AppState<T=MemoryCache> where T: Cache {
     templates: tera::Tera,
-    conn: DatabaseConnection,
+    conn: Arc<DatabaseConnection>,
+    cache: T,
 }
 
 #[derive(Debug, Deserialize)]
@@ -110,11 +112,9 @@ async fn create(
 
 #[get("/{id}")]
 async fn redirect(data: web::Data<AppState>, request: HttpRequest, id: web::Path<String>) -> Result<HttpResponse, Error> {
-    let conn = &data.conn;
+    let cache = &data.cache;
 
-    let redirection = Query::find_redirection_by_short_url(conn, id.into_inner())
-        .await
-        .map_err(|err| RusError::from(err))?;
+    let redirection = cache.try_get(id.into_inner());
 
     if let Some(redirection) = redirection {
         Ok(HttpResponse::Found().append_header(("location", redirection.long_url.to_string())).finish())
@@ -201,12 +201,16 @@ async fn start() -> std::io::Result<()> {
     let server_url = format!("{}:{}", host, port);
 
     // establish connection to database and apply migrations
-    let conn = Database::connect(&db_url).await.unwrap();
+    let conn = Arc::new(Database::connect(&db_url).await.unwrap());
+    let mut cache = MemoryCache::new(conn.clone());
+
+    cache.refresh().await.expect("Failed to refresh cach");
+
     Migrator::up(&conn, None).await.unwrap();
 
     // load tera templates and build app state
     let templates = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*")).unwrap();
-    let state = AppState { templates, conn };
+    let state = AppState { templates, conn: conn.clone(), cache };
 
     // create server and try to serve over socket if possible
     let mut listenfd = ListenFd::from_env();

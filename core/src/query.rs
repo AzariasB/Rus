@@ -12,6 +12,10 @@ impl Query {
         Redirection::find().filter(redirection::Column::ShortUrl.eq(short_url)).one(db).await
     }
 
+    pub async fn find_all(db: &DbConn) -> Result<Vec<redirection::Model>, DbErr> {
+        Redirection::find().all(db).await
+    }
+
     pub async fn find_redirections_in_page(
         db: &DbConn,
         page: u64,
