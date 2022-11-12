@@ -11,9 +11,9 @@ Notable libs used :
 - [x] Validate url passed into parameters
 - [ ] Handle in-memory caching of data
 - [ ] Handle caching of data via redis
-- [ ] Return 404 when the url doesn't exit
+- [x] Return 404 when the url doesn't exit
 - [ ] Handle link expiring (delete from database ?)
-- [ ] Save Ip address of user creating the url
+- [x] Save Ip address of user creating the url
 
 ## TODO v2
 - [ ] Use Svelte as a frontend framework

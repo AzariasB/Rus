@@ -3,13 +3,10 @@ extern crate core;
 pub mod errors;
 
 use crate::errors::{RusError};
-use rus_core::{
-    Mutation,
-    Query, sea_orm::{Database, DatabaseConnection},
-};
+use rus_core::{CreateMutation, Mutation, Query, sea_orm::{Database, DatabaseConnection}, UpdateMutation};
 use actix_files::Files as Fs;
 use actix_web::{
-    App, error, Error, get, HttpRequest, HttpResponse, HttpServer, middleware, post, Result, web,
+    App, error, Error, get, HttpRequest, HttpResponse, HttpServer, post, Result, web,
 };
 
 use entity::redirection;
@@ -86,6 +83,7 @@ async fn new(data: web::Data<AppState>) -> Result<HttpResponse, Error> {
 #[post("/")]
 async fn create(
     data: web::Data<AppState>,
+    request: HttpRequest,
     redirection_form: web::Form<CreateForm>,
 ) -> Result<HttpResponse, Error> {
     let conn = &data.conn;
@@ -96,7 +94,12 @@ async fn create(
         return Ok(HttpResponse::Found().append_header(("location", "/new")).finish());
     }
 
-    Mutation::create_redirection(conn, form.long_url)
+    Mutation::create_redirection(conn, CreateMutation::new(form.long_url,
+                                                           request
+                                                               .peer_addr()
+                                                               .map(|addr| addr.ip().to_string())
+                                                               .unwrap_or("".to_string()),
+    ))
         .await
         .expect("could not insert redirection");
 
@@ -106,15 +109,18 @@ async fn create(
 }
 
 #[get("/{id}")]
-async fn redirect(data: web::Data<AppState>, id: web::Path<String>) -> Result<HttpResponse, Error> {
+async fn redirect(data: web::Data<AppState>, request: HttpRequest, id: web::Path<String>) -> Result<HttpResponse, Error> {
     let conn = &data.conn;
 
     let redirection = Query::find_redirection_by_short_url(conn, id.into_inner())
         .await
-        .map_err(|err|RusError::from(err))?
-        .ok_or(RusError::NotFound)?;
+        .map_err(|err| RusError::from(err))?;
 
-    Ok(HttpResponse::Found().append_header(("location", redirection.long_url.to_string())).finish())
+    if let Some(redirection) = redirection {
+        Ok(HttpResponse::Found().append_header(("location", redirection.long_url.to_string())).finish())
+    } else {
+        not_found(data, request)
+    }
 }
 
 #[get("/edit/{id}")]
@@ -123,10 +129,10 @@ async fn edit(data: web::Data<AppState>, id: web::Path<i32>) -> Result<HttpRespo
     let template = &data.templates;
     let id = id.into_inner();
 
-    let redirection: redirection::Model = Query::find_redirection_by_id(conn, id)
+    let redirection = Query::find_redirection_by_id(conn, id)
         .await
-        .expect("could not find redirection")
-        .unwrap_or_else(|| panic!("could not find redirection with id {}", id));
+        .map_err(|dberr| RusError::from(dberr))?
+        .ok_or(RusError::NotFound)?;
 
     let mut ctx = tera::Context::new();
     ctx.insert("redirection", &redirection);
@@ -147,7 +153,7 @@ async fn update(
     let form = redirection_form.into_inner();
     let id = id.into_inner();
 
-    Mutation::update_redirection_by_id(conn, id, form.long_url)
+    Mutation::update_redirection_by_id(conn, UpdateMutation::new(id, form.long_url))
         .await
         .expect("could not edit redirection");
 
@@ -170,21 +176,21 @@ async fn delete(data: web::Data<AppState>, id: web::Path<i32>) -> Result<HttpRes
         .finish())
 }
 
-async fn not_found(data: web::Data<AppState>, request: HttpRequest) -> Result<HttpResponse, Error> {
+fn not_found(data: web::Data<AppState>, request: HttpRequest) -> Result<HttpResponse, Error> {
     let mut ctx = tera::Context::new();
     ctx.insert("uri", request.uri().path());
 
     let template = &data.templates;
     let body = template
         .render("error/404.html.tera", &ctx)
-        .map_err(|_| error::ErrorInternalServerError("Template error"))?;
+        .map_err(|err| error::ErrorInternalServerError(format!("Template error : {}", err)))?;
 
     Ok(HttpResponse::Ok().content_type("text/html").body(body))
 }
 
 #[actix_web::main]
 async fn start() -> std::io::Result<()> {
-    env::set_var("RUST_LOG", "debug");
+    env::set_var("RUST_LOG", "error");
     tracing_subscriber::fmt::init();
 
     // get env vars
@@ -208,8 +214,7 @@ async fn start() -> std::io::Result<()> {
         App::new()
             .service(Fs::new("/static", "./api/static"))
             .app_data(web::Data::new(state.clone()))
-            .wrap(middleware::Logger::default()) // enable logger
-            .default_service(web::route().to(not_found))
+            // .wrap(middleware::Logger::default()) // enable logger
             .configure(init)
     });
 

@@ -1,39 +1,63 @@
-use ::entity::post;
+use ::entity::redirection;
 use sea_orm::*;
 
 #[cfg(feature = "mock")]
 pub fn prepare_mock_db() -> DatabaseConnection {
     MockDatabase::new(DatabaseBackend::Postgres)
         .append_query_results(vec![
-            vec![post::Model {
+            vec![redirection::Model {
                 id: 1,
-                title: "Title A".to_owned(),
-                text: "Text A".to_owned(),
+                long_url: "https://example.com/".to_owned(),
+                short_url: "abcde".to_owned(),
+                creation_date: Default::default(),
+                expiration_date: None,
+                last_access_date: Default::default(),
+                ip_address: "".to_string()
             }],
-            vec![post::Model {
+            vec![redirection::Model {
                 id: 5,
-                title: "Title C".to_owned(),
-                text: "Text C".to_owned(),
+                long_url: "https://example.com/".to_owned(),
+                short_url: "eeeee".to_owned(),
+                creation_date: Default::default(),
+                expiration_date: None,
+                last_access_date: Default::default(),
+                ip_address: "".to_string()
             }],
-            vec![post::Model {
+            vec![redirection::Model {
                 id: 6,
-                title: "Title D".to_owned(),
-                text: "Text D".to_owned(),
+                long_url: "https://example.com/".to_owned(),
+                short_url: "fffff".to_owned(),
+                creation_date: Default::default(),
+                expiration_date: None,
+                last_access_date: Default::default(),
+                ip_address: "".to_string()
             }],
-            vec![post::Model {
+            vec![redirection::Model {
                 id: 1,
-                title: "Title A".to_owned(),
-                text: "Text A".to_owned(),
+                long_url: "https://example.com/".to_owned(),
+                short_url: "ggggg".to_owned(),
+                creation_date: Default::default(),
+                expiration_date: None,
+                last_access_date: Default::default(),
+                ip_address: "".to_string()
             }],
-            vec![post::Model {
+            vec![redirection::Model {
                 id: 1,
-                title: "New Title A".to_owned(),
-                text: "New Text A".to_owned(),
+                long_url: "https://example.com/".to_owned(),
+                short_url: "hhhhh".to_owned(),
+                creation_date: Default::default(),
+                expiration_date: None,
+                last_access_date: Default::default(),
+                ip_address: "".to_string()
             }],
-            vec![post::Model {
+            vec![redirection::Model {
                 id: 5,
-                title: "Title C".to_owned(),
-                text: "Text C".to_owned(),
+                long_url: "https://example.com/created".to_owned(),
+                short_url: "iiiiii".to_owned(),
+                creation_date: Default::default(),
+                expiration_date: None,
+                last_access_date: Default::default(),
+                ip_address: "".to_string()
             }],
         ])
         .append_exec_results(vec![
