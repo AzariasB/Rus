@@ -2,8 +2,9 @@ extern crate core;
 
 pub mod errors;
 
+use std::collections::HashMap;
 use crate::errors::{RusError};
-use rus_core::{CreateMutation, Mutation, Query, sea_orm::{Database, DatabaseConnection}, UpdateMutation, Cache, MemoryCache};
+use rus_core::{CreateMutation, Mutation, Query, sea_orm::{Database, DatabaseConnection}, UpdateMutation, Cache, redis};
 use actix_files::Files as Fs;
 use actix_web::{
     App, error, Error, get, HttpRequest, HttpResponse, HttpServer, post, Result, web,
@@ -14,17 +15,21 @@ use migration::{Migrator, MigratorTrait};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fmt::Debug;
-use std::sync::Arc;
+use std::sync::{Mutex};
 use tera::Tera;
 use url::Url;
 
 const DEFAULT_REDIRECTIONS_PER_PAGE: u64 = 5;
 
 #[derive(Debug, Clone)]
-struct AppState<T=MemoryCache> where T: Cache {
-    templates: tera::Tera,
-    conn: Arc<DatabaseConnection>,
-    cache: T,
+struct AppState {
+    templates: Tera,
+    conn: DatabaseConnection,
+}
+
+#[derive(Debug, Clone)]
+struct AppCache {
+    cache: Cache
 }
 
 #[derive(Debug, Deserialize)]
@@ -111,15 +116,29 @@ async fn create(
 }
 
 #[get("/{id}")]
-async fn redirect(data: web::Data<AppState>, request: HttpRequest, id: web::Path<String>) -> Result<HttpResponse, Error> {
-    let cache = &data.cache;
+async fn redirect(data: web::Data<AppState>, cache: web::Data<Mutex<AppCache>>, request: HttpRequest, id: web::Path<String>) -> Result<HttpResponse, Error> {
+    let mut cache = cache.lock().unwrap();
 
-    let redirection = cache.try_get(id.into_inner());
+    let short = id.into_inner();
 
-    if let Some(redirection) = redirection {
-        Ok(HttpResponse::Found().append_header(("location", redirection.long_url.to_string())).finish())
+    let redirection_opt = cache.cache.try_get(&short);
+
+    if let Some(redirection) = redirection_opt {
+        return Ok(HttpResponse::Found().append_header(("location", redirection.to_string())).finish());
+    }
+
+    let from_database = Query::find_redirection_by_short_url(&data.conn, short.to_string())
+        .await
+        .map_err(|e| RusError::from(e))?;
+
+    if let Some(model) = from_database {
+        let saved = cache.cache.add_entry(short.to_string(), model.long_url.to_string());
+        if let Err(e) = saved {
+            println!("Failed to save short url {} to cache : {}", short, e);
+        }
+        Ok(HttpResponse::Found().append_header(("location", model.long_url.to_string())).finish())
     } else {
-        not_found(data, request)
+        not_found(&data.templates, request)
     }
 }
 
@@ -176,16 +195,32 @@ async fn delete(data: web::Data<AppState>, id: web::Path<i32>) -> Result<HttpRes
         .finish())
 }
 
-fn not_found(data: web::Data<AppState>, request: HttpRequest) -> Result<HttpResponse, Error> {
+fn not_found(templates: &Tera, request: HttpRequest) -> Result<HttpResponse, Error> {
     let mut ctx = tera::Context::new();
     ctx.insert("uri", request.uri().path());
 
-    let template = &data.templates;
-    let body = template
+    let body = templates
         .render("error/404.html.tera", &ctx)
         .map_err(|err| error::ErrorInternalServerError(format!("Template error : {}", err)))?;
 
     Ok(HttpResponse::Ok().content_type("text/html").body(body))
+}
+
+fn create_cache() -> Cache {
+    let redis_url = env::var("REDIS_URL").ok();
+
+    if let Some(url) = redis_url {
+        if let Some(client) = redis::Client::open(url).ok() {
+            println!("Using redis as cache");
+            Cache::Redis(client)
+        } else {
+            println!("Failed to open redis connection, fallback to in-memory cache");
+            Cache::InMemory(HashMap::new())
+        }
+    } else {
+        println!("No redis url found, using in-memory cache");
+        Cache::InMemory(HashMap::new())
+    }
 }
 
 #[actix_web::main]
@@ -200,17 +235,13 @@ async fn start() -> std::io::Result<()> {
     let port = env::var("PORT").expect("PORT is not set in .env file");
     let server_url = format!("{}:{}", host, port);
 
-    // establish connection to database and apply migrations
-    let conn = Arc::new(Database::connect(&db_url).await.unwrap());
-    let mut cache = MemoryCache::new(conn.clone());
-
-    cache.refresh().await.expect("Failed to refresh cach");
+    let conn = Database::connect(&db_url).await.expect("Failed to connet to the database");
 
     Migrator::up(&conn, None).await.unwrap();
 
     // load tera templates and build app state
     let templates = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*")).unwrap();
-    let state = AppState { templates, conn: conn.clone(), cache };
+    let state = AppState { templates, conn: conn };
 
     // create server and try to serve over socket if possible
     let mut listenfd = ListenFd::from_env();
@@ -218,6 +249,7 @@ async fn start() -> std::io::Result<()> {
         App::new()
             .service(Fs::new("/static", "./api/static"))
             .app_data(web::Data::new(state.clone()))
+            .app_data(web::Data::new(Mutex::new(AppCache { cache: create_cache()})))
             // .wrap(middleware::Logger::default()) // enable logger
             .configure(init)
     });

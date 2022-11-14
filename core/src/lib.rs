@@ -7,3 +7,4 @@ pub use query::*;
 pub use cache::*;
 
 pub use sea_orm;
+pub use redis;

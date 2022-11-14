@@ -1,62 +1,38 @@
-use std::error::Error;
-use async_trait::async_trait;
-use ::entity::redirection;
 use std::collections::HashMap;
-use std::fmt::{Debug, Formatter};
-use std::ops::Deref;
-use std::sync::Arc;
-use sea_orm::{DbConn};
-use entity::redirection::Model;
-use crate::Query;
+use std::fmt::{Debug};
+use redis::{Commands, RedisError};
 
-#[async_trait]
-pub trait Cache: Debug + Clone + Sized {
-    fn try_get(&self, key: String) -> Option<&redirection::Model>;
-
-    async fn refresh(&mut self) -> Result<(), Box<dyn Error>>;
+#[derive(Debug, Clone)]
+pub enum Cache {
+    InMemory(HashMap<String, String>),
+    Redis(redis::Client),
 }
 
-pub struct MemoryCache {
-    pub cache: HashMap<String, redirection::Model>,
-    pub db: Arc<DbConn>
-}
+impl Cache {
 
-impl MemoryCache {
-    pub fn new(conn: Arc<DbConn>) -> MemoryCache {
-        MemoryCache {
-            cache: HashMap::new(),
-            db: conn
+    pub fn try_get(self: &Self, key: &String) -> Option<String> {
+        match self {
+            Cache::InMemory(data) => data.get(key.as_str()).map(|str| str.to_owned()),
+            Cache::Redis(client) => {
+                client.get_connection()
+                    .ok()
+                    .map(|mut conn| conn.get(key).ok())
+                    .flatten()
+            }
         }
     }
-}
 
-impl Debug for MemoryCache {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.cache.fmt(f)
-    }
-}
-
-impl Clone for MemoryCache {
-    fn clone(&self) -> Self {
-        MemoryCache {
-            db: self.db.clone(),
-            cache: self.cache.clone()
+    pub fn add_entry(&mut self, key: String, value: String) -> Result<(), RedisError> {
+        match self {
+            Cache::InMemory(data) => {
+                data.insert(key, value);
+                Ok(())
+            }
+            Cache::Redis(client) => {
+                let mut connection = client.get_connection()?;
+                connection.set::<String, String, String>(key, value)?;
+                Ok(())
+            }
         }
-    }
-}
-
-#[async_trait]
-impl Cache for MemoryCache {
-    fn try_get(&self, key: String) -> Option<&Model> {
-        self.cache.get(&key)
-    }
-
-    async fn refresh(&mut self) -> Result<(), Box<dyn Error>> {
-        let redirections = Query::find_all(self.db.deref()).await?;
-        self.cache.clear();
-        for link in redirections {
-            self.cache.insert(link.short_url.to_string(), link.clone());
-        }
-        Result::Ok(())
     }
 }

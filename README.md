@@ -9,11 +9,12 @@ Notable libs used :
 
 ## TODO
 - [x] Validate url passed into parameters
-- [ ] Handle in-memory caching of data
-- [ ] Handle caching of data via redis
+- [x] Handle in-memory caching of data
+- [x] Handle caching of data via redis
 - [x] Return 404 when the url doesn't exit
 - [ ] Handle link expiring (delete from database ?)
 - [x] Save Ip address of user creating the url
+- [ ] Use the correct logging system
 
 ## TODO v2
 - [ ] Use Svelte as a frontend framework
