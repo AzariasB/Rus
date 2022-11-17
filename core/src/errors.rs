@@ -23,7 +23,7 @@ impl RusError {
             Self::Forbidden => "Forbidden".to_string(),
             Self::Unknown => "Unknown".to_string(),
             Self::Database(details) => format!("Database : {0}", details.to_string()),
-            Self::Redis(details) => format!("Redis : {0}", details.to_string())
+            Self::Redis(details) => format!("Redis : {0}", details.to_string()),
         }
     }
 }
@@ -35,6 +35,7 @@ impl From<DbErr> for RusError {
 }
 
 impl From<RedisError> for RusError {
-    fn from(err: RedisError) -> Self { RusError::Redis(err) }
+    fn from(err: RedisError) -> Self {
+        RusError::Redis(err)
+    }
 }
-

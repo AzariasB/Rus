@@ -16,7 +16,7 @@ pub struct Model {
     #[sea_orm(nullable)]
     pub expiration_date: Option<NaiveDateTime>,
     pub last_access_date: NaiveDateTime,
-    pub ip_address: String
+    pub ip_address: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

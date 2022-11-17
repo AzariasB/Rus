@@ -6,14 +6,18 @@ use std::fmt::Debug;
 use std::sync::Mutex;
 
 use actix_files::Files as Fs;
-use actix_web::{App, error, Error, get, HttpRequest, HttpResponse, HttpServer, post, Result, web};
+use actix_web::{error, get, post, web, App, Error, HttpRequest, HttpResponse, HttpServer, Result};
 use listenfd::ListenFd;
 use serde::{Deserialize, Serialize};
 use tera::Tera;
 use url::Url;
 
 use migration::{Migrator, MigratorTrait};
-use rus_core::{Cache, CreateMutation, Mutation, Query, redis, sea_orm::{Database, DatabaseConnection}, UpdateMutation};
+use rus_core::{
+    redis,
+    sea_orm::{Database, DatabaseConnection},
+    Cache, CreateMutation, Mutation, Query, UpdateMutation,
+};
 
 mod errors;
 
@@ -47,22 +51,23 @@ struct CreateForm {
     long_url: String,
 }
 
-
 #[get("/")]
 async fn list(req: HttpRequest, data: web::Data<AppState>) -> Result<HttpResponse, Error> {
     let template = &data.templates;
     let conn = &data.conn;
 
-
     // get params
     let params = web::Query::<Params>::from_query(req.query_string()).unwrap();
 
     let page = params.page.unwrap_or(1);
-    let redirections_per_page = params.redirections_per_page.unwrap_or(DEFAULT_REDIRECTIONS_PER_PAGE);
+    let redirections_per_page = params
+        .redirections_per_page
+        .unwrap_or(DEFAULT_REDIRECTIONS_PER_PAGE);
 
-    let (redirections, num_pages) = Query::find_redirections_in_page(conn, page, redirections_per_page)
-        .await
-        .expect("Cannot find redirections in page");
+    let (redirections, num_pages) =
+        Query::find_redirections_in_page(conn, page, redirections_per_page)
+            .await
+            .expect("Cannot find redirections in page");
 
     let mut ctx = tera::Context::new();
     ctx.insert("redirections", &redirections);
@@ -97,17 +102,23 @@ async fn create(
     let url_parsing = Url::parse(form.long_url.as_str());
 
     if let Err(_err) = url_parsing {
-        return Ok(HttpResponse::Found().append_header(("location", "/new")).finish());
+        return Ok(HttpResponse::Found()
+            .append_header(("location", "/new"))
+            .finish());
     }
 
-    Mutation::create_redirection(conn, CreateMutation::new(form.long_url,
-                                                           request
-                                                               .peer_addr()
-                                                               .map(|addr| addr.ip().to_string())
-                                                               .unwrap_or("".to_string()),
-    ))
-        .await
-        .expect("could not insert redirection");
+    Mutation::create_redirection(
+        conn,
+        CreateMutation::new(
+            form.long_url,
+            request
+                .peer_addr()
+                .map(|addr| addr.ip().to_string())
+                .unwrap_or("".to_string()),
+        ),
+    )
+    .await
+    .expect("could not insert redirection");
 
     Ok(HttpResponse::Found()
         .append_header(("location", "/"))
@@ -115,7 +126,12 @@ async fn create(
 }
 
 #[get("/{id}")]
-async fn redirect(data: web::Data<AppState>, cache: web::Data<Mutex<AppCache>>, request: HttpRequest, id: web::Path<String>) -> Result<HttpResponse, Error> {
+async fn redirect(
+    data: web::Data<AppState>,
+    cache: web::Data<Mutex<AppCache>>,
+    request: HttpRequest,
+    id: web::Path<String>,
+) -> Result<HttpResponse, Error> {
     let mut cache = cache.lock().unwrap();
 
     let short = id.into_inner();
@@ -123,7 +139,9 @@ async fn redirect(data: web::Data<AppState>, cache: web::Data<Mutex<AppCache>>, 
     let redirection_opt = cache.cache.try_get(&short);
 
     if let Some(redirection) = redirection_opt {
-        return Ok(HttpResponse::Found().append_header(("location", redirection.to_string())).finish());
+        return Ok(HttpResponse::Found()
+            .append_header(("location", redirection.to_string()))
+            .finish());
     }
 
     let from_database = Query::find_redirection_by_short_url(&data.conn, short.to_string())
@@ -131,11 +149,15 @@ async fn redirect(data: web::Data<AppState>, cache: web::Data<Mutex<AppCache>>, 
         .map_err(errors::ApiError::from)?;
 
     if let Some(model) = from_database {
-        let saved = cache.cache.add_entry(short.to_string(), model.long_url.to_string());
+        let saved = cache
+            .cache
+            .add_entry(short.to_string(), model.long_url.to_string());
         if let Err(e) = saved {
             println!("Failed to save short url {} to cache : {}", short, e);
         }
-        Ok(HttpResponse::Found().append_header(("location", model.long_url.to_string())).finish())
+        Ok(HttpResponse::Found()
+            .append_header(("location", model.long_url.to_string()))
+            .finish())
     } else {
         not_found(&data.templates, request)
     }
@@ -234,7 +256,9 @@ async fn start() -> std::io::Result<()> {
     let port = env::var("RUS_PORT").expect("RUS_PORT is not set in .env file");
     let server_url = format!("{}:{}", host, port);
 
-    let conn = Database::connect(&db_url).await.expect("Failed to connet to the database");
+    let conn = Database::connect(&db_url)
+        .await
+        .expect("Failed to connet to the database");
 
     Migrator::up(&conn, None).await.unwrap();
 
@@ -248,7 +272,9 @@ async fn start() -> std::io::Result<()> {
         App::new()
             .service(Fs::new("/static", "./api/static"))
             .app_data(web::Data::new(state.clone()))
-            .app_data(web::Data::new(Mutex::new(AppCache { cache: create_cache() })))
+            .app_data(web::Data::new(Mutex::new(AppCache {
+                cache: create_cache(),
+            })))
             // .wrap(middleware::Logger::default()) // enable logger
             .configure(init)
     });

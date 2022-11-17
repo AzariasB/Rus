@@ -14,19 +14,19 @@ pub enum ApiError {
     #[display(fmt = "Interal error")]
     Core(RusError),
     NotFound,
-
 }
-
 
 impl ResponseError for ApiError {
     fn error_response(&self) -> HttpResponse<BoxBody> {
-        HttpResponse::build(self.status_code()).insert_header(ContentType::json()).body(self.to_string())
+        HttpResponse::build(self.status_code())
+            .insert_header(ContentType::json())
+            .body(self.to_string())
     }
 
     fn status_code(&self) -> StatusCode {
         match *self {
             ApiError::Core(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            ApiError::NotFound => StatusCode::NOT_FOUND
+            ApiError::NotFound => StatusCode::NOT_FOUND,
         }
     }
 }

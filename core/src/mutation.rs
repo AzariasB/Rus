@@ -1,10 +1,9 @@
-use ::entity::{redirection, redirection::Entity as Redirection};
-use sea_orm::*;
-use rand::{distributions::Alphanumeric, Rng};
 use crate::Query;
+use ::entity::{redirection, redirection::Entity as Redirection};
+use rand::{distributions::Alphanumeric, Rng};
+use sea_orm::*;
 
 const SHORT_URL_LENGTH: usize = 6;
-
 
 pub struct Mutation;
 
@@ -53,7 +52,8 @@ impl Mutation {
         mut create: CreateMutation,
     ) -> Result<redirection::ActiveModel, DbErr> {
         loop {
-            let existing = Query::find_redirection_by_short_url(db, create.short_url.to_string()).await?;
+            let existing =
+                Query::find_redirection_by_short_url(db, create.short_url.to_string()).await?;
             if existing == None {
                 return redirection::ActiveModel {
                     long_url: Set(create.long_url),
@@ -61,8 +61,8 @@ impl Mutation {
                     ip_address: Set(create.ip_address),
                     ..Default::default()
                 }
-                    .save(db)
-                    .await;
+                .save(db)
+                .await;
             }
             create.regenerate_short_url();
         }
@@ -83,8 +83,8 @@ impl Mutation {
             long_url: Set(update.long_url),
             ..Default::default()
         }
-            .update(db)
-            .await
+        .update(db)
+        .await
     }
 
     pub async fn delete_redirection(db: &DbConn, id: i32) -> Result<DeleteResult, DbErr> {

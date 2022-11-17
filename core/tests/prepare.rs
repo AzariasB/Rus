@@ -12,7 +12,7 @@ pub fn prepare_mock_db() -> DatabaseConnection {
                 creation_date: Default::default(),
                 expiration_date: None,
                 last_access_date: Default::default(),
-                ip_address: "".to_string()
+                ip_address: "".to_string(),
             }],
             vec![redirection::Model {
                 id: 5,
@@ -21,7 +21,7 @@ pub fn prepare_mock_db() -> DatabaseConnection {
                 creation_date: Default::default(),
                 expiration_date: None,
                 last_access_date: Default::default(),
-                ip_address: "".to_string()
+                ip_address: "".to_string(),
             }],
             vec![redirection::Model {
                 id: 6,
@@ -30,7 +30,7 @@ pub fn prepare_mock_db() -> DatabaseConnection {
                 creation_date: Default::default(),
                 expiration_date: None,
                 last_access_date: Default::default(),
-                ip_address: "".to_string()
+                ip_address: "".to_string(),
             }],
             vec![redirection::Model {
                 id: 1,
@@ -39,7 +39,7 @@ pub fn prepare_mock_db() -> DatabaseConnection {
                 creation_date: Default::default(),
                 expiration_date: None,
                 last_access_date: Default::default(),
-                ip_address: "".to_string()
+                ip_address: "".to_string(),
             }],
             vec![redirection::Model {
                 id: 1,
@@ -48,7 +48,7 @@ pub fn prepare_mock_db() -> DatabaseConnection {
                 creation_date: Default::default(),
                 expiration_date: None,
                 last_access_date: Default::default(),
-                ip_address: "".to_string()
+                ip_address: "".to_string(),
             }],
             vec![redirection::Model {
                 id: 5,
@@ -57,7 +57,7 @@ pub fn prepare_mock_db() -> DatabaseConnection {
                 creation_date: Default::default(),
                 expiration_date: None,
                 last_access_date: Default::default(),
-                ip_address: "".to_string()
+                ip_address: "".to_string(),
             }],
         ])
         .append_exec_results(vec![

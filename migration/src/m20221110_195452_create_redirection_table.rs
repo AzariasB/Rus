@@ -7,7 +7,7 @@ pub struct Migration;
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         // Replace the sample below with your own migration scripts
-       manager
+        manager
             .create_table(
                 Table::create()
                     .table(Redirection::Table)
@@ -20,10 +20,28 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(Redirection::LongUrl).string().not_null())
-                    .col(ColumnDef::new(Redirection::ShortUrl).string().not_null().unique_key())
-                    .col(ColumnDef::new(Redirection::CreationDate).date_time().not_null().extra("DEFAULT CURRENT_TIMESTAMP".to_string()))
-                    .col(ColumnDef::new(Redirection::ExpirationDate).date_time().null())
-                    .col(ColumnDef::new(Redirection::LastAccessDate).date_time().extra("DEFAULT CURRENT_TIMESTAMP".to_string()))
+                    .col(
+                        ColumnDef::new(Redirection::ShortUrl)
+                            .string()
+                            .not_null()
+                            .unique_key(),
+                    )
+                    .col(
+                        ColumnDef::new(Redirection::CreationDate)
+                            .date_time()
+                            .not_null()
+                            .extra("DEFAULT CURRENT_TIMESTAMP".to_string()),
+                    )
+                    .col(
+                        ColumnDef::new(Redirection::ExpirationDate)
+                            .date_time()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Redirection::LastAccessDate)
+                            .date_time()
+                            .extra("DEFAULT CURRENT_TIMESTAMP".to_string()),
+                    )
                     .col(ColumnDef::new(Redirection::IpAddress).string())
                     .to_owned(),
             )
@@ -47,5 +65,5 @@ enum Redirection {
     CreationDate,
     ExpirationDate,
     LastAccessDate,
-    IpAddress
+    IpAddress,
 }

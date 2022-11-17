@@ -1,7 +1,7 @@
-mod prepare;
-
-use rus_core::{Mutation, Query};
 use prepare::prepare_mock_db;
+use rus_core::{CreateMutation, Mutation, Query, UpdateMutation};
+
+mod prepare;
 
 #[tokio::test]
 async fn main() {
@@ -20,12 +20,10 @@ async fn main() {
     }
 
     {
-        let redirection = Mutation::create_redirection(
-            db,
-            "https://example.com/created".to_string(),
-        )
-            .await
-            .unwrap();
+        let redirection =
+            Mutation::create_redirection(db, CreateMutation::new("https://example.com/created".to_string(), "".to_string()))
+                .await
+                .unwrap();
 
         assert_eq!(
             redirection.long_url,
@@ -34,13 +32,10 @@ async fn main() {
     }
 
     {
-        let redirection = Mutation::update_redirection_by_id(
-            db,
-            1,
-            "https://example.com/updated".to_string(),
-        )
-            .await
-            .unwrap();
+        let redirection =
+            Mutation::update_redirection_by_id(db, UpdateMutation::new(1, "https://example.com/created".to_string()))
+                .await
+                .unwrap();
 
         assert_eq!(
             redirection.long_url,

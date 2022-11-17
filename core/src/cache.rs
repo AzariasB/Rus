@@ -15,12 +15,11 @@ impl Cache {
     pub fn try_get(self: &Self, key: &String) -> Option<String> {
         match self {
             Cache::InMemory(data) => data.get(key.as_str()).map(|str| str.to_owned()),
-            Cache::Redis(client) => {
-                client.get_connection()
-                    .ok()
-                    .map(|mut conn| conn.get(key).ok())
-                    .flatten()
-            }
+            Cache::Redis(client) => client
+                .get_connection()
+                .ok()
+                .map(|mut conn| conn.get(key).ok())
+                .flatten(),
         }
     }
 
