@@ -7,7 +7,18 @@ Notable libs used :
 - Sea ORM to handle the database queries
 - Tera (for now) to render html templates
 
+## Use with docker
+
+To start rus with docker :
+```bash
+# This might take a while to build all the dependencies
+docker build -t rus .
+docker run --restart unless-stopped --env RUS_HOST=0.0.0.0 --env RUS_PORT=8000 --env RUS_DATABASE_URL="postgresql://<user>:<password>@127.0.0.1/<databasename>"  -p "8000:8000" rus 
+```
+Then go with a web browser to the address localhost:8000 to see if everything's going well.
+
 ## TODO
+- [x] Add Docker support
 - [x] Validate url passed into parameters
 - [x] Handle in-memory caching of data
 - [x] Handle caching of data via redis

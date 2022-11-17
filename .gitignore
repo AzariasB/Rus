@@ -146,4 +146,4 @@ Cargo.lock
 
 # Custom stuff
 .env
-
+docker-compose.yml

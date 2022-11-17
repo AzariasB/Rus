@@ -229,9 +229,9 @@ async fn start() -> std::io::Result<()> {
 
     // get env vars
     dotenvy::dotenv().ok();
-    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL is not set in .env file");
-    let host = env::var("HOST").expect("HOST is not set in .env file");
-    let port = env::var("PORT").expect("PORT is not set in .env file");
+    let db_url = env::var("RUS_DATABASE_URL").expect("RUS_DATABASE_URL is not set in .env file");
+    let host = env::var("RUS_HOST").expect("RUS_HOST is not set in .env file");
+    let port = env::var("RUS_PORT").expect("RUS_PORT is not set in .env file");
     let server_url = format!("{}:{}", host, port);
 
     let conn = Database::connect(&db_url).await.expect("Failed to connet to the database");
