@@ -20,10 +20,12 @@ async fn main() {
     }
 
     {
-        let redirection =
-            Mutation::create_redirection(db, CreateMutation::new("https://example.com/created".to_string(), "".to_string()))
-                .await
-                .unwrap();
+        let redirection = Mutation::create_redirection(
+            db,
+            CreateMutation::new("https://example.com/created".to_string(), "".to_string()),
+        )
+        .await
+        .unwrap();
 
         assert_eq!(
             redirection.long_url,
@@ -32,10 +34,12 @@ async fn main() {
     }
 
     {
-        let redirection =
-            Mutation::update_redirection_by_id(db, UpdateMutation::new(1, "https://example.com/created".to_string()))
-                .await
-                .unwrap();
+        let redirection = Mutation::update_redirection_by_id(
+            db,
+            UpdateMutation::new(1, "https://example.com/created".to_string()),
+        )
+        .await
+        .unwrap();
 
         assert_eq!(
             redirection.long_url,
