@@ -240,7 +240,7 @@ async fn start() -> std::io::Result<()> {
 
     // load tera templates and build app state
     let templates = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*")).unwrap();
-    let state = AppState { templates, conn: conn };
+    let state = AppState { templates, conn };
 
     // create server and try to serve over socket if possible
     let mut listenfd = ListenFd::from_env();
