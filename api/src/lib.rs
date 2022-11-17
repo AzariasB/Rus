@@ -1,23 +1,21 @@
 extern crate core;
 
-pub mod errors;
-
 use std::collections::HashMap;
-use crate::errors::{RusError};
-use rus_core::{CreateMutation, Mutation, Query, sea_orm::{Database, DatabaseConnection}, UpdateMutation, Cache, redis};
-use actix_files::Files as Fs;
-use actix_web::{
-    App, error, Error, get, HttpRequest, HttpResponse, HttpServer, post, Result, web,
-};
-
-use listenfd::ListenFd;
-use migration::{Migrator, MigratorTrait};
-use serde::{Deserialize, Serialize};
 use std::env;
 use std::fmt::Debug;
-use std::sync::{Mutex};
+use std::sync::Mutex;
+
+use actix_files::Files as Fs;
+use actix_web::{App, error, Error, get, HttpRequest, HttpResponse, HttpServer, post, Result, web};
+use listenfd::ListenFd;
+use serde::{Deserialize, Serialize};
 use tera::Tera;
 use url::Url;
+
+use migration::{Migrator, MigratorTrait};
+use rus_core::{Cache, CreateMutation, Mutation, Query, redis, sea_orm::{Database, DatabaseConnection}, UpdateMutation};
+
+mod errors;
 
 const DEFAULT_REDIRECTIONS_PER_PAGE: u64 = 5;
 
@@ -29,7 +27,7 @@ struct AppState {
 
 #[derive(Debug, Clone)]
 struct AppCache {
-    cache: Cache
+    cache: Cache,
 }
 
 #[derive(Debug, Deserialize)]
@@ -48,6 +46,7 @@ struct FlashData {
 struct CreateForm {
     long_url: String,
 }
+
 
 #[get("/")]
 async fn list(req: HttpRequest, data: web::Data<AppState>) -> Result<HttpResponse, Error> {
@@ -129,7 +128,7 @@ async fn redirect(data: web::Data<AppState>, cache: web::Data<Mutex<AppCache>>, 
 
     let from_database = Query::find_redirection_by_short_url(&data.conn, short.to_string())
         .await
-        .map_err(|e| RusError::from(e))?;
+        .map_err(errors::ApiError::from)?;
 
     if let Some(model) = from_database {
         let saved = cache.cache.add_entry(short.to_string(), model.long_url.to_string());
@@ -150,8 +149,8 @@ async fn edit(data: web::Data<AppState>, id: web::Path<i32>) -> Result<HttpRespo
 
     let redirection = Query::find_redirection_by_id(conn, id)
         .await
-        .map_err(|dberr| RusError::from(dberr))?
-        .ok_or(RusError::NotFound)?;
+        .map_err(errors::ApiError::from)?
+        .ok_or(errors::ApiError::NotFound)?;
 
     let mut ctx = tera::Context::new();
     ctx.insert("redirection", &redirection);
@@ -249,7 +248,7 @@ async fn start() -> std::io::Result<()> {
         App::new()
             .service(Fs::new("/static", "./api/static"))
             .app_data(web::Data::new(state.clone()))
-            .app_data(web::Data::new(Mutex::new(AppCache { cache: create_cache()})))
+            .app_data(web::Data::new(Mutex::new(AppCache { cache: create_cache() })))
             // .wrap(middleware::Logger::default()) // enable logger
             .configure(init)
     });

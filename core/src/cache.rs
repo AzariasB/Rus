@@ -1,6 +1,9 @@
 use std::collections::HashMap;
-use std::fmt::{Debug};
-use redis::{Commands, RedisError};
+use std::fmt::Debug;
+
+use redis::Commands;
+
+use crate::errors::RusError;
 
 #[derive(Debug, Clone)]
 pub enum Cache {
@@ -9,7 +12,6 @@ pub enum Cache {
 }
 
 impl Cache {
-
     pub fn try_get(self: &Self, key: &String) -> Option<String> {
         match self {
             Cache::InMemory(data) => data.get(key.as_str()).map(|str| str.to_owned()),
@@ -22,7 +24,7 @@ impl Cache {
         }
     }
 
-    pub fn add_entry(&mut self, key: String, value: String) -> Result<(), RedisError> {
+    pub fn add_entry(&mut self, key: String, value: String) -> Result<(), RusError> {
         match self {
             Cache::InMemory(data) => {
                 data.insert(key, value);

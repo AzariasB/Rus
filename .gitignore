@@ -4,6 +4,8 @@
 .idea/**/usage.statistics.xml
 .idea/**/dictionaries
 .idea/**/shelf
+.idea/jpa-buddy.xml
+.idea/misc.xml
 
 # AWS User-specific
 .idea/**/aws.xml
@@ -144,3 +146,4 @@ Cargo.lock
 
 # Custom stuff
 .env
+

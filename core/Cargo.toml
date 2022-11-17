@@ -13,8 +13,9 @@ sea-orm = { version = "^0.10.2", features = [
     "sqlx-postgres"
 ] }
 rand = "0.8.5"
-async-trait = "0.1.58"
 redis = "0.22.1"
+derive_more = "0.99.17"
+
 
 [dev-dependencies]
 tokio = { version = "1.20.0", features = ["macros", "rt"] }
