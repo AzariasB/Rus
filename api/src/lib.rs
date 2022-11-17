@@ -114,7 +114,7 @@ async fn create(
             request
                 .peer_addr()
                 .map(|addr| addr.ip().to_string())
-                .unwrap_or("".to_string()),
+                .unwrap_or_else(|| "".to_string()),
         ),
     )
     .await
@@ -132,16 +132,18 @@ async fn redirect(
     request: HttpRequest,
     id: web::Path<String>,
 ) -> Result<HttpResponse, Error> {
-    let mut cache = cache.lock().unwrap();
-
     let short = id.into_inner();
 
-    let redirection_opt = cache.cache.try_get(&short);
+    {
+        let cache = cache.lock().unwrap();
 
-    if let Some(redirection) = redirection_opt {
-        return Ok(HttpResponse::Found()
-            .append_header(("location", redirection.to_string()))
-            .finish());
+        let redirection_opt = cache.cache.try_get(&short);
+
+        if let Some(redirection) = redirection_opt {
+            return Ok(HttpResponse::Found()
+                .append_header(("location", redirection))
+                .finish());
+        }
     }
 
     let from_database = Query::find_redirection_by_short_url(&data.conn, short.to_string())
@@ -150,13 +152,15 @@ async fn redirect(
 
     if let Some(model) = from_database {
         let saved = cache
+            .lock()
+            .unwrap()
             .cache
             .add_entry(short.to_string(), model.long_url.to_string());
         if let Err(e) = saved {
             println!("Failed to save short url {} to cache : {}", short, e);
         }
         Ok(HttpResponse::Found()
-            .append_header(("location", model.long_url.to_string()))
+            .append_header(("location", model.long_url))
             .finish())
     } else {
         not_found(&data.templates, request)
@@ -231,7 +235,7 @@ fn create_cache() -> Cache {
     let redis_url = env::var("REDIS_URL").ok();
 
     if let Some(url) = redis_url {
-        if let Some(client) = redis::Client::open(url).ok() {
+        if let Ok(client) = redis::Client::open(url) {
             println!("Using redis as cache");
             Cache::Redis(client)
         } else {

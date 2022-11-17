@@ -22,8 +22,8 @@ impl RusError {
         match self {
             Self::Forbidden => "Forbidden".to_string(),
             Self::Unknown => "Unknown".to_string(),
-            Self::Database(details) => format!("Database : {0}", details.to_string()),
-            Self::Redis(details) => format!("Redis : {0}", details.to_string()),
+            Self::Database(details) => format!("Database : {0}", details),
+            Self::Redis(details) => format!("Redis : {0}", details),
         }
     }
 }

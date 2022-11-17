@@ -54,7 +54,7 @@ impl Mutation {
         loop {
             let existing =
                 Query::find_redirection_by_short_url(db, create.short_url.to_string()).await?;
-            if existing == None {
+            if existing.is_none() {
                 return redirection::ActiveModel {
                     long_url: Set(create.long_url),
                     short_url: Set(create.short_url),
@@ -75,7 +75,7 @@ impl Mutation {
         let redirection: redirection::ActiveModel = Redirection::find_by_id(update.id)
             .one(db)
             .await?
-            .ok_or(DbErr::Custom("Cannot find redirection.".to_owned()))
+            .ok_or_else(|| DbErr::Custom("Cannot find redirection.".to_owned()))
             .map(Into::into)?;
 
         redirection::ActiveModel {
@@ -91,7 +91,7 @@ impl Mutation {
         let redirection: redirection::ActiveModel = Redirection::find_by_id(id)
             .one(db)
             .await?
-            .ok_or(DbErr::Custom("Cannot find redirection.".to_owned()))
+            .ok_or_else(|| DbErr::Custom("Cannot find redirection.".to_owned()))
             .map(Into::into)?;
 
         redirection.delete(db).await
