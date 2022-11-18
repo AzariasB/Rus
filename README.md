@@ -19,12 +19,14 @@ Then go with a web browser to the address localhost:8000 to see if everything's 
 
 ## TODO
 - [x] Add Docker support
+- [x] Add Github pipeline
 - [x] Validate url passed into parameters
 - [x] Handle in-memory caching of data
 - [x] Handle caching of data via redis
 - [x] Return 404 when the url doesn't exit
-- [ ] Handle link expiring (delete from database ?)
 - [x] Save Ip address of user creating the url
+- [x] Update last access date when the link is clicked
+- [ ] Handle link expiring (delete from database ?)
 - [ ] Use the correct logging system
 
 ## TODO v2

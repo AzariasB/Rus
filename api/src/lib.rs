@@ -140,6 +140,18 @@ async fn redirect(
         let redirection_opt = cache.cache.try_get(&short);
 
         if let Some(redirection) = redirection_opt {
+            actix_rt::spawn(async move {
+                Query::update_access_date(&data.conn, short.to_string())
+                    .await
+                    .map_err(|e| {
+                        println!(
+                            "Failed to update last access date of {}, cause : {}",
+                            short, e
+                        );
+                    })
+                    .unwrap();
+            });
+
             return Ok(HttpResponse::Found()
                 .append_header(("location", redirection))
                 .finish());
@@ -151,16 +163,29 @@ async fn redirect(
         .map_err(errors::ApiError::from)?;
 
     if let Some(model) = from_database {
-        let saved = cache
-            .lock()
-            .unwrap()
-            .cache
-            .add_entry(short.to_string(), model.long_url.to_string());
-        if let Err(e) = saved {
-            println!("Failed to save short url {} to cache : {}", short, e);
-        }
+        let final_url = model.long_url.to_owned();
+
+        actix_rt::spawn(async move {
+            let saved = cache
+                .lock()
+                .unwrap()
+                .cache
+                .add_entry(short.to_string(), model.long_url.to_string());
+            if let Err(e) = saved {
+                println!("Failed to save short url {} to cache : {}", short, e);
+            }
+            Query::update_access_date(&data.conn, short.to_string())
+                .await
+                .map_err(|e| {
+                    println!(
+                        "Failed to update last access date of {}, cause : {}",
+                        short, e
+                    );
+                })
+                .unwrap();
+        });
         Ok(HttpResponse::Found()
-            .append_header(("location", model.long_url))
+            .append_header(("location", final_url))
             .finish())
     } else {
         not_found(&data.templates, request)
