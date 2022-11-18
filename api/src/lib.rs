@@ -8,11 +8,13 @@ use std::sync::Mutex;
 use actix_files::Files as Fs;
 use actix_web::{error, get, post, web, App, Error, HttpRequest, HttpResponse, HttpServer, Result};
 use listenfd::ListenFd;
+use log::LevelFilter;
 use serde::{Deserialize, Serialize};
 use tera::Tera;
 use url::Url;
 
 use migration::{Migrator, MigratorTrait};
+use rus_core::sea_orm::ConnectOptions;
 use rus_core::{
     redis,
     sea_orm::{Database, DatabaseConnection},
@@ -275,25 +277,42 @@ fn create_cache() -> Cache {
 
 #[actix_web::main]
 async fn start() -> std::io::Result<()> {
-    env::set_var("RUST_LOG", "error");
+    env::set_var("RUST_LOG", "info");
     tracing_subscriber::fmt::init();
 
     // get env vars
     dotenvy::dotenv().ok();
     let db_url = env::var("RUS_DATABASE_URL").expect("RUS_DATABASE_URL is not set in .env file");
-    let host = env::var("RUS_HOST").expect("RUS_HOST is not set in .env file");
-    let port = env::var("RUS_PORT").expect("RUS_PORT is not set in .env file");
+    let host = env::var("RUS_HOST").unwrap_or_else(|err| {
+        println!(
+            "RUS_HOST is not set in .env file ({}), fallback to 0.0.0.0",
+            err
+        );
+        "0.0.0.0".to_owned()
+    });
+    let port = env::var("RUS_PORT").unwrap_or_else(|err| {
+        println!(
+            "RUS_PORT is not set in .env file ({}), fallback to 8000",
+            err
+        );
+        "8000".to_owned()
+    });
     let server_url = format!("{}:{}", host, port);
+    let mut connect_options = ConnectOptions::new(db_url);
+    connect_options.sqlx_logging_level(LevelFilter::Debug);
 
-    let conn = Database::connect(&db_url)
+    let conn = Database::connect(connect_options)
         .await
-        .expect("Failed to connet to the database");
+        .expect("Failed to connect to the database");
 
     Migrator::up(&conn, None).await.unwrap();
 
     // load tera templates and build app state
     let templates = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*")).unwrap();
     let state = AppState { templates, conn };
+    let cache = AppCache {
+        cache: create_cache(),
+    };
 
     // create server and try to serve over socket if possible
     let mut listenfd = ListenFd::from_env();
@@ -301,9 +320,7 @@ async fn start() -> std::io::Result<()> {
         App::new()
             .service(Fs::new("/static", "./api/static"))
             .app_data(web::Data::new(state.clone()))
-            .app_data(web::Data::new(Mutex::new(AppCache {
-                cache: create_cache(),
-            })))
+            .app_data(web::Data::new(Mutex::new(cache.clone())))
             // .wrap(middleware::Logger::default()) // enable logger
             .configure(init)
     });
