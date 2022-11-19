@@ -2,6 +2,7 @@ use crate::{errors, AppCache, AppState, CreateForm, Params, DEFAULT_REDIRECTIONS
 use actix_web::{error, web, Error, HttpRequest, HttpResponse};
 use rus_core::{CreateMutation, Mutation, Query, UpdateMutation};
 use std::sync::Mutex;
+use log::warn;
 use tera::Tera;
 use url::Url;
 
@@ -68,8 +69,8 @@ pub async fn create(
                 .unwrap_or_else(|| "".to_string()),
         ),
     )
-    .await
-    .expect("could not insert redirection");
+        .await
+        .expect("could not insert redirection");
 
     Ok(HttpResponse::Found()
         .append_header(("location", "/"))
@@ -94,10 +95,8 @@ pub async fn redirect(
                 Query::update_access_date(&data.conn, short.to_string())
                     .await
                     .map_err(|e| {
-                        println!(
-                            "Failed to update last access date of {}, cause : {}",
-                            short, e
-                        );
+                        warn!("Failed to update last access date of {}, cause : {}",
+                            short, e);
                     })
                     .unwrap();
             });
@@ -122,15 +121,13 @@ pub async fn redirect(
                 .cache
                 .add_entry(short.to_string(), model.long_url.to_string());
             if let Err(e) = saved {
-                println!("Failed to save short url {} to cache : {}", short, e);
+                warn!("Failed to save short url {} to cache : {}", short, e)
             }
             Query::update_access_date(&data.conn, short.to_string())
                 .await
                 .map_err(|e| {
-                    println!(
-                        "Failed to update last access date of {}, cause : {}",
-                        short, e
-                    );
+                    warn!("Failed to update last access date of {}, cause : {}",
+                        short, e);
                 })
                 .unwrap();
         });

@@ -1,3 +1,5 @@
+use log::warn;
+
 pub enum RusEnv {
     RedisUrl,
     DatabaseUrl,
@@ -22,10 +24,8 @@ impl RusEnv {
     pub fn get_or(&self, default: String) -> String {
         let var_name = self.name();
         std::env::var(var_name).unwrap_or_else(|err| {
-            println!(
-                "Failed to get env variable {} (err), using default ({}) instead",
-                var_name, err
-            );
+            warn!("Failed to get env variable {} (err), using default ({}) instead",
+                var_name, err);
             default
         })
     }

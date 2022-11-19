@@ -26,8 +26,8 @@ Then go with a web browser to the address localhost:8000 to see if everything's 
 - [x] Return 404 when the url doesn't exit
 - [x] Save Ip address of user creating the url
 - [x] Update last access date when the link is clicked
+- [x] Use the correct logging system
 - [ ] Handle link expiring (delete from database ?)
-- [ ] Use the correct logging system
 
 ## TODO v2
 - [ ] Use Svelte as a frontend framework

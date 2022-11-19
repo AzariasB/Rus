@@ -8,7 +8,7 @@ use std::sync::Mutex;
 use actix_files::Files as Fs;
 use actix_web::{middleware, web, App, HttpServer};
 use listenfd::ListenFd;
-use log::LevelFilter;
+use log::{error, info, LevelFilter, warn};
 use serde::Deserialize;
 use tera::Tera;
 
@@ -57,14 +57,14 @@ fn create_cache() -> Cache {
 
     if let Some(url) = redis_url {
         if let Ok(client) = redis::Client::open(url) {
-            println!("Using redis as cache");
+            info!("Using redis as cache");
             Cache::Redis(client)
         } else {
-            println!("Failed to open redis connection, fallback to in-memory cache");
+            warn!("Failed to open redis connection, fallback to in-memory cache");
             Cache::InMemory(HashMap::new())
         }
     } else {
-        println!("No redis url found, using in-memory cache");
+        info!("No redis url found, using in-memory cache");
         Cache::InMemory(HashMap::new())
     }
 }
@@ -114,7 +114,7 @@ async fn start() -> std::io::Result<()> {
         None => server.bind(&server_url)?,
     };
 
-    println!("Starting server at {}", server_url);
+    info!("Starting server at {}", server_url);
     server.run().await?;
 
     Ok(())
@@ -124,6 +124,6 @@ pub fn main() {
     let result = start();
 
     if let Some(err) = result.err() {
-        println!("Error: {}", err);
+        error!("Error: {}", err)
     }
 }
