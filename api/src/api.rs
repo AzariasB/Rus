@@ -1,8 +1,8 @@
 use crate::{errors, AppCache, AppState, CreateForm, Params, DEFAULT_REDIRECTIONS_PER_PAGE};
 use actix_web::{error, web, Error, HttpRequest, HttpResponse};
+use log::warn;
 use rus_core::{CreateMutation, Mutation, Query, UpdateMutation};
 use std::sync::Mutex;
-use log::warn;
 use tera::Tera;
 use url::Url;
 
@@ -67,10 +67,11 @@ pub async fn create(
                 .peer_addr()
                 .map(|addr| addr.ip().to_string())
                 .unwrap_or_else(|| "".to_string()),
+            data.link_lifetime,
         ),
     )
-        .await
-        .expect("could not insert redirection");
+    .await
+    .expect("could not insert redirection");
 
     Ok(HttpResponse::Found()
         .append_header(("location", "/"))
@@ -95,8 +96,10 @@ pub async fn redirect(
                 Query::update_access_date(&data.conn, short.to_string())
                     .await
                     .map_err(|e| {
-                        warn!("Failed to update last access date of {}, cause : {}",
-                            short, e);
+                        warn!(
+                            "Failed to update last access date of {}, cause : {}",
+                            short, e
+                        );
                     })
                     .unwrap();
             });
@@ -126,8 +129,10 @@ pub async fn redirect(
             Query::update_access_date(&data.conn, short.to_string())
                 .await
                 .map_err(|e| {
-                    warn!("Failed to update last access date of {}, cause : {}",
-                        short, e);
+                    warn!(
+                        "Failed to update last access date of {}, cause : {}",
+                        short, e
+                    );
                 })
                 .unwrap();
         });

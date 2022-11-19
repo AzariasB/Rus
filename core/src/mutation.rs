@@ -1,5 +1,6 @@
 use crate::Query;
 use ::entity::{redirection, redirection::Entity as Redirection};
+use chrono::{Duration, NaiveDateTime, Utc};
 use rand::{distributions::Alphanumeric, Rng};
 use sea_orm::*;
 
@@ -11,6 +12,7 @@ pub struct CreateMutation {
     long_url: String,
     short_url: String,
     ip_address: String,
+    expiration_date: NaiveDateTime,
 }
 
 pub struct UpdateMutation {
@@ -33,11 +35,13 @@ fn generate_random_string(str_size: usize) -> String {
 }
 
 impl CreateMutation {
-    pub fn new(long_url: String, ip_address: String) -> CreateMutation {
+    pub fn new(long_url: String, ip_address: String, link_lifetime: Duration) -> CreateMutation {
+        let expiration_date = Utc::now().naive_utc() + link_lifetime;
         CreateMutation {
             long_url,
             ip_address,
             short_url: generate_random_string(SHORT_URL_LENGTH),
+            expiration_date,
         }
     }
 
@@ -59,6 +63,7 @@ impl Mutation {
                     long_url: Set(create.long_url),
                     short_url: Set(create.short_url),
                     ip_address: Set(create.ip_address),
+                    expiration_date: Set(Some(create.expiration_date)),
                     ..Default::default()
                 }
                 .save(db)

@@ -15,6 +15,7 @@ sea-orm = { version = "^0.10.2", features = [
 rand = "0.8.5"
 redis = "0.22.1"
 derive_more = "0.99.17"
+chrono = "0.4.23"
 
 [dev-dependencies]
 tokio = { version = "1.20.0", features = ["macros", "rt"] }

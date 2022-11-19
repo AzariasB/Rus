@@ -8,12 +8,14 @@ use std::sync::Mutex;
 use actix_files::Files as Fs;
 use actix_web::{middleware, web, App, HttpServer};
 use listenfd::ListenFd;
-use log::{error, info, LevelFilter, warn};
+use log::{error, info, warn, LevelFilter};
 use serde::Deserialize;
 use tera::Tera;
 
+use crate::conf::RusConf;
 use crate::routes::init;
 use migration::{Migrator, MigratorTrait};
+use rus_core::chrono::Duration;
 use rus_core::sea_orm::ConnectOptions;
 use rus_core::{
     redis,
@@ -29,11 +31,13 @@ mod routes;
 const DEFAULT_REDIRECTIONS_PER_PAGE: u64 = 5;
 const DEFAULT_WEB_HOST: &str = "0.0.0.0";
 const DEFAULT_WEB_PORT: &str = "8000";
+const DEFAULT_LINK_LIFETIME: i64 = 90;
 
 #[derive(Debug, Clone)]
 pub struct AppState {
     templates: Tera,
     conn: DatabaseConnection,
+    link_lifetime: Duration,
 }
 
 #[derive(Debug, Clone)]
@@ -53,7 +57,7 @@ pub struct CreateForm {
 }
 
 fn create_cache() -> Cache {
-    let redis_url = conf::RusEnv::RedisUrl.get();
+    let redis_url = RusConf::RedisUrl.get();
 
     if let Some(url) = redis_url {
         if let Ok(client) = redis::Client::open(url) {
@@ -76,11 +80,11 @@ async fn start() -> std::io::Result<()> {
 
     // get env vars
     dotenvy::dotenv().ok();
-    let db_url = conf::RusEnv::DatabaseUrl
+    let db_url = RusConf::DatabaseUrl
         .get()
         .expect("Must set RUS_DATABASE_URL env variable");
-    let host = conf::RusEnv::WebHost.get_or(DEFAULT_WEB_HOST.to_owned());
-    let port = conf::RusEnv::WebPort.get_or(DEFAULT_WEB_PORT.to_owned());
+    let host = RusConf::WebHost.get_or(DEFAULT_WEB_HOST.to_owned());
+    let port = RusConf::WebPort.get_or(DEFAULT_WEB_PORT.to_owned());
     let server_url = format!("{}:{}", host, port);
     let mut connect_options = ConnectOptions::new(db_url);
     connect_options.sqlx_logging_level(LevelFilter::Debug);
@@ -93,7 +97,12 @@ async fn start() -> std::io::Result<()> {
 
     // load tera templates and build app state
     let templates = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*")).unwrap();
-    let state = AppState { templates, conn };
+    let link_lifetime = Duration::days(RusConf::LinkDaysLifeTime.get_i64_or(DEFAULT_LINK_LIFETIME));
+    let state = AppState {
+        templates,
+        conn,
+        link_lifetime,
+    };
     let cache = AppCache {
         cache: create_cache(),
     };
