@@ -6,7 +6,9 @@ use std::fmt::Debug;
 use std::sync::Mutex;
 
 use actix_files::Files as Fs;
-use actix_web::{error, get, post, web, App, Error, HttpRequest, HttpResponse, HttpServer, Result};
+use actix_web::{
+    error, get, middleware, post, web, App, Error, HttpRequest, HttpResponse, HttpServer, Result,
+};
 use listenfd::ListenFd;
 use log::LevelFilter;
 use serde::{Deserialize, Serialize};
@@ -21,9 +23,12 @@ use rus_core::{
     Cache, CreateMutation, Mutation, Query, UpdateMutation,
 };
 
+mod conf;
 mod errors;
 
 const DEFAULT_REDIRECTIONS_PER_PAGE: u64 = 5;
+const DEFAULT_WEB_HOST: &str = "0.0.0.0";
+const DEFAULT_WEB_PORT: &str = "8000";
 
 #[derive(Debug, Clone)]
 struct AppState {
@@ -259,7 +264,7 @@ fn not_found(templates: &Tera, request: HttpRequest) -> Result<HttpResponse, Err
 }
 
 fn create_cache() -> Cache {
-    let redis_url = env::var("REDIS_URL").ok();
+    let redis_url = conf::RusEnv::RedisUrl.get();
 
     if let Some(url) = redis_url {
         if let Ok(client) = redis::Client::open(url) {
@@ -282,21 +287,11 @@ async fn start() -> std::io::Result<()> {
 
     // get env vars
     dotenvy::dotenv().ok();
-    let db_url = env::var("RUS_DATABASE_URL").expect("RUS_DATABASE_URL is not set in .env file");
-    let host = env::var("RUS_HOST").unwrap_or_else(|err| {
-        println!(
-            "RUS_HOST is not set in .env file ({}), fallback to 0.0.0.0",
-            err
-        );
-        "0.0.0.0".to_owned()
-    });
-    let port = env::var("RUS_PORT").unwrap_or_else(|err| {
-        println!(
-            "RUS_PORT is not set in .env file ({}), fallback to 8000",
-            err
-        );
-        "8000".to_owned()
-    });
+    let db_url = conf::RusEnv::DatabaseUrl
+        .get()
+        .expect("Must set RUS_DATABASE_URL env variable");
+    let host = conf::RusEnv::WebHost.get_or(DEFAULT_WEB_HOST.to_owned());
+    let port = conf::RusEnv::WebPort.get_or(DEFAULT_WEB_PORT.to_owned());
     let server_url = format!("{}:{}", host, port);
     let mut connect_options = ConnectOptions::new(db_url);
     connect_options.sqlx_logging_level(LevelFilter::Debug);
@@ -321,7 +316,7 @@ async fn start() -> std::io::Result<()> {
             .service(Fs::new("/static", "./api/static"))
             .app_data(web::Data::new(state.clone()))
             .app_data(web::Data::new(Mutex::new(cache.clone())))
-            // .wrap(middleware::Logger::default()) // enable logger
+            .wrap(middleware::Logger::default()) // enable logger
             .configure(init)
     });
 
