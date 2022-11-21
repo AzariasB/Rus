@@ -27,10 +27,10 @@ Then go with a web browser to the address localhost:8000 to see if everything's 
 - [x] Save Ip address of user creating the url
 - [x] Update last access date when the link is clicked
 - [x] Use the correct logging system
-- [ ] Handle link expiring (delete from database ?)
+- [x] Handle link expiring: delete from database, and cache
 
 ## TODO v2
-- [ ] Use Svelte as a frontend framework
+- [ ] Use Elm as a frontend framework
 - [ ] Add statistics to each newly created link
 - [ ] Add account system to see the link stats
 - [ ] An admin can delete all links

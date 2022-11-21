@@ -118,11 +118,11 @@ pub async fn redirect(
         let final_url = model.long_url.to_owned();
 
         actix_rt::spawn(async move {
-            let saved = cache
-                .lock()
-                .unwrap()
-                .cache
-                .add_entry(short.to_string(), model.long_url.to_string());
+            let saved = cache.lock().unwrap().cache.add_entry(
+                short.to_string(),
+                model.long_url.to_string(),
+                model.expiration_date.unwrap_or_default(),
+            );
             if let Err(e) = saved {
                 warn!("Failed to save short url {} to cache : {}", short, e)
             }
