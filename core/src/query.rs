@@ -22,6 +22,18 @@ impl Query {
             .await
     }
 
+    pub async fn delete_outdated_redirections(
+        db: &DbConn,
+    ) -> Result<Vec<redirection::Model>, DbErr> {
+        let stmt = Statement::from_string(
+            DbBackend::Postgres,
+            "DELETE FROM redirection WHERE expiration_date <= CURRENT_TIMESTAMP RETURNING *;"
+                .to_owned(),
+        );
+        let exec_result = Redirection::find().from_raw_sql(stmt).all(db);
+        exec_result.await
+    }
+
     pub async fn find_all(db: &DbConn) -> Result<Vec<redirection::Model>, DbErr> {
         Redirection::find().all(db).await
     }

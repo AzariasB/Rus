@@ -13,6 +13,7 @@ use serde::Deserialize;
 use tera::Tera;
 
 use crate::conf::RusConf;
+use crate::jobs::remove_expired_redirections;
 use crate::routes::init;
 use migration::{Migrator, MigratorTrait};
 use rus_core::chrono::Duration;
@@ -26,6 +27,7 @@ use rus_core::{
 mod api;
 mod conf;
 mod errors;
+mod jobs;
 mod routes;
 
 const DEFAULT_REDIRECTIONS_PER_PAGE: u64 = 5;
@@ -106,6 +108,7 @@ async fn start() -> std::io::Result<()> {
     let cache = AppCache {
         cache: create_cache(),
     };
+    let jobs_state = state.clone();
 
     // create server and try to serve over socket if possible
     let mut listenfd = ListenFd::from_env();
@@ -122,6 +125,10 @@ async fn start() -> std::io::Result<()> {
         Some(listener) => server.listen(listener)?,
         None => server.bind(&server_url)?,
     };
+
+    actix_rt::spawn(async move {
+        remove_expired_redirections(jobs_state).await;
+    });
 
     info!("Starting server at {}", server_url);
     server.run().await?;
