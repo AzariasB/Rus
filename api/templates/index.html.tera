@@ -17,30 +17,9 @@
           <th></th>
         </tr>
       </thead>
-      {% for redirection in redirections %}
-      <tr class="post">
-        <td>{{ redirection.id }}</td>
-        <td>{{ redirection.long_url }}</td>
-        <td><a href="/{{ redirection.short_url }}">{{ redirection.short_url }}</a></td>
-        <td><button onclick="window.location='/edit/{{ redirection.id }}';" >Edit</button></td>
-      </tr>
-      {% endfor %}
     </tbody>
     <tfoot>
       <tr>
-        <td></td>
-        <td>
-          {% if page == 1 %} Previous {% else %}
-          <a href="/?page={{ page - 1 }}&redirections_per_page={{ redirections_per_page }}"
-            >Previous</a
-          >
-          {% endif %} | {% if page == num_pages %} Next {% else %}
-          <a href="/?page={{ page + 1 }}&redirections_per_page={{ redirections_per_page }}"
-            >Next</a
-          >
-          {% endif %}
-        </td>
-        <td></td>
       </tr>
     </tfoot>
   </table>

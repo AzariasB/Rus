@@ -13,7 +13,7 @@ use rus_core::redis::RedisError;
 pub enum ApiError {
     #[display(fmt = "Interal error")]
     Core(RusError),
-    NotFound,
+    // NotFound,
 }
 
 impl ResponseError for ApiError {
@@ -26,7 +26,7 @@ impl ResponseError for ApiError {
     fn status_code(&self) -> StatusCode {
         match *self {
             ApiError::Core(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            ApiError::NotFound => StatusCode::NOT_FOUND,
+            // ApiError::NotFound => StatusCode::NOT_FOUND,
         }
     }
 }

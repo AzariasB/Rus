@@ -1,13 +1,32 @@
 use crate::{errors, AppCache, AppState, CreateForm, Params, DEFAULT_REDIRECTIONS_PER_PAGE};
-use actix_web::{error, web, Error, HttpRequest, HttpResponse};
+use actix_web::{error, web, Error, HttpRequest, HttpResponse, Responder};
+use entity::redirection::Model;
 use log::warn;
 use rus_core::{CreateMutation, Mutation, Query, UpdateMutation};
+use serde::Serialize;
 use std::sync::Mutex;
 use tera::Tera;
 use url::Url;
 
-pub async fn list(req: HttpRequest, data: web::Data<AppState>) -> Result<HttpResponse, Error> {
+#[derive(Serialize)]
+struct ListResponse {
+    redirections: Vec<Model>,
+    page: u64,
+    redirections_per_page: u64,
+    pages_count: u64,
+}
+
+pub async fn home(data: web::Data<AppState>) -> Result<HttpResponse, Error> {
     let template = &data.templates;
+    let ctx = tera::Context::new();
+
+    let body = template
+        .render("index.html.tera", &ctx)
+        .map_err(|_| error::ErrorInternalServerError("Template error"))?;
+    Ok(HttpResponse::Ok().content_type("text/html").body(body))
+}
+
+pub async fn list(req: HttpRequest, data: web::Data<AppState>) -> Result<impl Responder, Error> {
     let conn = &data.conn;
 
     // get params
@@ -18,30 +37,17 @@ pub async fn list(req: HttpRequest, data: web::Data<AppState>) -> Result<HttpRes
         .redirections_per_page
         .unwrap_or(DEFAULT_REDIRECTIONS_PER_PAGE);
 
-    let (redirections, num_pages) =
+    let (redirections, pages_count) =
         Query::find_redirections_in_page(conn, page, redirections_per_page)
             .await
             .expect("Cannot find redirections in page");
 
-    let mut ctx = tera::Context::new();
-    ctx.insert("redirections", &redirections);
-    ctx.insert("page", &page);
-    ctx.insert("redirections_per_page", &redirections_per_page);
-    ctx.insert("num_pages", &num_pages);
-
-    let body = template
-        .render("index.html.tera", &ctx)
-        .map_err(|_| error::ErrorInternalServerError("Template error"))?;
-    Ok(HttpResponse::Ok().content_type("text/html").body(body))
-}
-
-pub async fn new(data: web::Data<AppState>) -> Result<HttpResponse, Error> {
-    let template = &data.templates;
-    let ctx = tera::Context::new();
-    let body = template
-        .render("new.html.tera", &ctx)
-        .map_err(|_| error::ErrorInternalServerError("Template error"))?;
-    Ok(HttpResponse::Ok().content_type("text/html").body(body))
+    Ok(web::Json(ListResponse {
+        redirections,
+        page,
+        redirections_per_page,
+        pages_count,
+    }))
 }
 
 pub async fn create(
@@ -142,25 +148,6 @@ pub async fn redirect(
     } else {
         not_found(&data.templates, request)
     }
-}
-
-pub async fn edit(data: web::Data<AppState>, id: web::Path<i32>) -> Result<HttpResponse, Error> {
-    let conn = &data.conn;
-    let template = &data.templates;
-    let id = id.into_inner();
-
-    let redirection = Query::find_redirection_by_id(conn, id)
-        .await
-        .map_err(errors::ApiError::from)?
-        .ok_or(errors::ApiError::NotFound)?;
-
-    let mut ctx = tera::Context::new();
-    ctx.insert("redirection", &redirection);
-
-    let body = template
-        .render("edit.html.tera", &ctx)
-        .map_err(|_| error::ErrorInternalServerError("Template error"))?;
-    Ok(HttpResponse::Ok().content_type("text/html").body(body))
 }
 
 pub async fn update(
