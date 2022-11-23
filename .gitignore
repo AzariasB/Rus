@@ -148,3 +148,5 @@ Cargo.lock
 .env
 docker-compose.yml
 elm-stuff
+main.js
+main.min.js

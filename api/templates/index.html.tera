@@ -1,33 +1,40 @@
 {% extends "layout.html.tera" %} {% block content %}
 <div class="container">
-  <p><!--Nothing to see here --></p>
-  <h1>URLs</h1>
-  {% if flash %}
-  <small class="field-{{ flash.kind }}-flash">
-    {{ flash.message }}
-  </small>
-  {% endif %}
-  <table>
-    <tbody>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Long url</th>
-          <th>Short url</th>
-          <th></th>
-        </tr>
-      </thead>
-    </tbody>
-    <tfoot>
-      <tr>
-      </tr>
-    </tfoot>
-  </table>
+<!--    <p>&lt;!&ndash;Nothing to see here &ndash;&gt;</p>-->
+<!--    <h1>URLs</h1>-->
+<!--    {% if flash %}-->
+<!--    <small class="field-{{ flash.kind }}-flash">-->
+<!--        {{ flash.message }}-->
+<!--    </small>-->
+<!--    {% endif %}-->
+<!--    <table>-->
+<!--        <tbody>-->
+<!--        <thead>-->
+<!--        <tr>-->
+<!--            <th>ID</th>-->
+<!--            <th>Long url</th>-->
+<!--            <th>Short url</th>-->
+<!--            <th></th>-->
+<!--        </tr>-->
+<!--        </thead>-->
+<!--        </tbody>-->
+<!--        <tfoot>-->
+<!--        <tr>-->
+<!--        </tr>-->
+<!--        </tfoot>-->
+<!--    </table>-->
 
-  <div class="twelve columns">
-    <a href="/new">
-      <input type="button" value="add redirection" />
-    </a>
-  </div>
+    <div id="myapp"></div>
+    <script>
+      var app = Elm.Main.init({
+        node: document.getElementById('myapp')
+      });
+    </script>
+
+<!--    <div class="twelve columns">-->
+<!--        <a href="/new">-->
+<!--            <input type="button" value="add redirection"/>-->
+<!--        </a>-->
+<!--    </div>-->
 </div>
 {% endblock content %}

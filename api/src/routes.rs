@@ -13,9 +13,9 @@ pub fn init(cfg: &mut web::ServiceConfig) {
                         .route("", get().to(api::list))
                         .route("", post().to(api::create))
                         .route("/{id}", delete().to(api::delete))
-                        .route("/{id}", get().to(api::redirect))
                         .route("/{id}", post().to(api::update)),
                 ),
-            ),
+            )
+            .route("/{id}", get().to(api::redirect)),
     );
 }

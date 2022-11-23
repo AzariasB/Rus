@@ -37,17 +37,12 @@ pub async fn list(req: HttpRequest, data: web::Data<AppState>) -> Result<impl Re
         .redirections_per_page
         .unwrap_or(DEFAULT_REDIRECTIONS_PER_PAGE);
 
-    let (redirections, pages_count) =
+    let (redirections, _pages_count) =
         Query::find_redirections_in_page(conn, page, redirections_per_page)
             .await
             .expect("Cannot find redirections in page");
 
-    Ok(web::Json(ListResponse {
-        redirections,
-        page,
-        redirections_per_page,
-        pages_count,
-    }))
+    Ok(web::Json(redirections))
 }
 
 pub async fn create(

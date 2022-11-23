@@ -15,10 +15,10 @@
     <link rel="stylesheet" href="/static/css/skeleton.css" />
     <link rel="stylesheet" href="/static/css/style.css" />
     <link rel="icon" type="image/png" href="/static/images/favicon.png" />
+    <script src="/static/scripts/main.js"></script>
   </head>
   <body>
     <div class="container">
-      <p><!--Nothing to see here --></p>
       {% block content %}{% endblock content %}
     </div>
   </body>
