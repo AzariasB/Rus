@@ -63,7 +63,7 @@ button.small {
   width: 150px;
 }
 
-#delete-button {
+.delete-button {
   color: red;
   border-color: red;
 }

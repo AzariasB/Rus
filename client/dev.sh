@@ -1,13 +1,11 @@
 #!/bin/sh
 
-set -e
-
 out_dir="../api/static/scripts/"
 
 js="${out_dir}main.js"
 
-while inotifywait -e close_write $@
+while inotifywait -e close_write ./src/**
 do
-  elm make --optimize --output=$js $@
+  elm make --output=$js src/Main.elm
   echo "Initial size: $(cat $js | wc -c) bytes  ($js)"
 done
