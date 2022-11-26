@@ -1,11 +1,11 @@
 use crate::{errors, AppCache, AppState, CreateForm, Params, DEFAULT_REDIRECTIONS_PER_PAGE};
+use actix_web::web::Json;
 use actix_web::{error, web, Error, HttpRequest, HttpResponse, Responder};
 use entity::redirection::Model;
 use log::warn;
 use rus_core::{CreateMutation, Mutation, Query, UpdateMutation};
 use serde::Serialize;
 use std::sync::Mutex;
-use tera::Tera;
 use url::Url;
 
 #[derive(Serialize)]
@@ -14,6 +14,12 @@ struct ListResponse {
     page: u64,
     redirections_per_page: u64,
     pages_count: u64,
+}
+
+#[derive(Serialize)]
+struct CreateResponse {
+    error: bool,
+    message: String,
 }
 
 pub async fn home(data: web::Data<AppState>) -> Result<HttpResponse, Error> {
@@ -42,22 +48,23 @@ pub async fn list(req: HttpRequest, data: web::Data<AppState>) -> Result<impl Re
             .await
             .expect("Cannot find redirections in page");
 
-    Ok(web::Json(redirections))
+    Ok(Json(redirections))
 }
 
 pub async fn create(
     data: web::Data<AppState>,
     request: HttpRequest,
     redirection_form: web::Form<CreateForm>,
-) -> Result<HttpResponse, Error> {
+) -> Result<impl Responder, Error> {
     let conn = &data.conn;
     let form = redirection_form.into_inner();
     let url_parsing = Url::parse(form.long_url.as_str());
 
     if let Err(_err) = url_parsing {
-        return Ok(HttpResponse::Found()
-            .append_header(("location", "/new"))
-            .finish());
+        return Ok(Json(CreateResponse {
+            error: true,
+            message: _err.to_string(),
+        }));
     }
 
     Mutation::create_redirection(
@@ -72,17 +79,23 @@ pub async fn create(
         ),
     )
     .await
-    .expect("could not insert redirection");
-
-    Ok(HttpResponse::Found()
-        .append_header(("location", "/"))
-        .finish())
+    .map(|res| {
+        Ok(Json(CreateResponse {
+            error: false,
+            message: format!("Url {} created", res.short_url.unwrap()),
+        }))
+    })
+    .unwrap_or_else(|err| {
+        Ok(Json(CreateResponse {
+            error: true,
+            message: err.to_string(),
+        }))
+    })
 }
 
 pub async fn redirect(
     data: web::Data<AppState>,
     cache: web::Data<Mutex<AppCache>>,
-    request: HttpRequest,
     id: web::Path<String>,
 ) -> Result<HttpResponse, Error> {
     let short = id.into_inner();
@@ -141,7 +154,7 @@ pub async fn redirect(
             .append_header(("location", final_url))
             .finish())
     } else {
-        not_found(&data.templates, request)
+        home(data).await
     }
 }
 
@@ -174,15 +187,4 @@ pub async fn delete(data: web::Data<AppState>, id: web::Path<i32>) -> Result<Htt
     Ok(HttpResponse::Found()
         .append_header(("location", "/"))
         .finish())
-}
-
-fn not_found(templates: &Tera, request: HttpRequest) -> Result<HttpResponse, Error> {
-    let mut ctx = tera::Context::new();
-    ctx.insert("uri", request.uri().path());
-
-    let body = templates
-        .render("error/404.html.tera", &ctx)
-        .map_err(|err| error::ErrorInternalServerError(format!("Template error : {}", err)))?;
-
-    Ok(HttpResponse::Ok().content_type("text/html").body(body))
 }

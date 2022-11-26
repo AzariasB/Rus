@@ -1,4 +1,4 @@
-module Pages.Home exposing (Model(..), Msg(..), fetchRedirections, init, update, view)
+module Pages.Home exposing (Model, Msg, fetchRedirections, init, update, view)
 
 import Html exposing (..)
 import Html.Attributes exposing (class, href, style)
@@ -6,21 +6,26 @@ import Html.Events exposing (..)
 import Http
 import Json.Decode exposing (Decoder, field, int, list, map3, string)
 import Redirection exposing (Redirection)
+import Session
 
 
 
 -- MODEL
 
 
-type Model
+type Status
     = Failure
     | Loading
     | Success (List Redirection)
 
 
-init : ( Model, Cmd Msg )
-init =
-    ( Loading, fetchRedirections )
+type alias Model =
+    { status : Status, session : Session.Data }
+
+
+init : Session.Data -> ( Model, Cmd Msg )
+init data =
+    ( { status = Loading, session = data }, fetchRedirections )
 
 
 
@@ -37,15 +42,15 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Refresh ->
-            ( Loading, fetchRedirections )
+            ( { model | status = Loading }, fetchRedirections )
 
         GotRedirections result ->
             case result of
                 Ok redirections ->
-                    ( Success redirections, Cmd.none )
+                    ( { model | status = Success redirections }, Cmd.none )
 
                 Err _ ->
-                    ( Failure, Cmd.none )
+                    ( { model | status = Failure }, Cmd.none )
 
         EditRedirection _ ->
             ( model, Cmd.none )
@@ -57,7 +62,7 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    case model of
+    case model.status of
         Failure ->
             div []
                 [ text "Failed to load the shortened links. "
@@ -81,7 +86,7 @@ view model =
                         ]
                     , tbody [] (List.map redirectionRow redirections)
                     ]
-                , a [ href "#create" ] [ button [ style "display" "block" ] [ text "Shorten url" ] ]
+                , a [ href "/create" ] [ button [ style "display" "block" ] [ text "Shorten url" ] ]
                 ]
 
 

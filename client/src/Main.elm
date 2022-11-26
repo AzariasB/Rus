@@ -1,4 +1,4 @@
-module Main exposing (Model, Redirection, init, main, update, view)
+module Main exposing (Model, init, main, update, view)
 
 import Browser exposing (Document)
 import Browser.Navigation as Nav
@@ -28,13 +28,6 @@ main =
 
 type alias Model =
     { page : Page.Model }
-
-
-type alias Redirection =
-    { long_url : String
-    , short_url : String
-    , id : Int
-    }
 
 
 init : () -> Url -> Nav.Key -> ( Model, Cmd Page.Msg )

@@ -30,7 +30,7 @@ mod errors;
 mod jobs;
 mod routes;
 
-const DEFAULT_REDIRECTIONS_PER_PAGE: u64 = 5;
+const DEFAULT_REDIRECTIONS_PER_PAGE: u64 = 100;
 const DEFAULT_WEB_HOST: &str = "0.0.0.0";
 const DEFAULT_WEB_PORT: &str = "8000";
 const DEFAULT_LINK_LIFETIME: i64 = 90;
