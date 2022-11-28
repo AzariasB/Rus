@@ -5,6 +5,7 @@ import Browser.Navigation as Nav
 import Html exposing (Html, a, div, footer, h1, header, text)
 import Html.Attributes exposing (class, href)
 import Pages.Create as C
+import Pages.Error as E
 import Pages.Home as H
 import Session
 import Url exposing (Url)
@@ -20,6 +21,7 @@ type alias Model =
 type Page
     = Home H.Model
     | Create C.Model
+    | Error E.Model
 
 
 type Msg
@@ -27,6 +29,7 @@ type Msg
     | ClickedLink Browser.UrlRequest
     | GotHomeMsg H.Msg
     | GotCreateMsg C.Msg
+    | GotErrorMsg E.Msg
 
 
 init : Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -38,7 +41,7 @@ init url key =
         ( homeModel, _ ) =
             H.init session
     in
-    route url { page = Home homeModel, session = session }
+    preRouting url { page = Home homeModel, session = session }
 
 
 
@@ -47,16 +50,19 @@ init url key =
 
 view : Model -> Document Msg
 view model =
+    let
+        displayPage title htmlMap pageView =
+            { title = title, body = viewHeader :: viewFlash model.session.flash :: Html.map htmlMap pageView :: [ viewFooter ] }
+    in
     case model.page of
         Home subModel ->
-            { title = "Home"
-            , body = viewHeader :: viewFlash model.session.flash :: Html.map GotHomeMsg (H.view subModel) :: [ viewFooter ]
-            }
+            displayPage "Home" GotHomeMsg <| H.view subModel
 
         Create subModel ->
-            { title = "Create"
-            , body = viewHeader :: viewFlash model.session.flash :: Html.map GotCreateMsg (C.view subModel) :: [ viewFooter ]
-            }
+            displayPage "Create" GotCreateMsg <| C.view subModel
+
+        Error subModel ->
+            displayPage "Error" GotErrorMsg <| E.view subModel
 
 
 viewHeader : Html msg
@@ -142,21 +148,32 @@ updateWith model toModel toMsg ( subModel, subCmd ) =
     ( { model | page = toModel subModel }, Cmd.map toMsg subCmd )
 
 
+preRouting : Url -> Model -> ( Model, Cmd Msg )
+preRouting url model =
+    case Parser.parse (routeParser model) url of
+        Just answer ->
+            answer
+
+        Nothing ->
+            updateWith model Error GotErrorMsg (E.init "Page not found")
+
+
 route : Url -> Model -> ( Model, Cmd Msg )
 route url model =
-    let
-        parser =
-            oneOf
-                [ pageRoute top (homeRoute model)
-                , pageRoute (s "create") (createRoute model)
-                ]
-    in
-    case Parser.parse parser url of
+    case Parser.parse (routeParser model) url of
         Just answer ->
             answer
 
         Nothing ->
             ( model, Nav.load (Url.toString url) )
+
+
+routeParser : Model -> Parser (( Model, Cmd Msg ) -> a) a
+routeParser model =
+    oneOf
+        [ pageRoute top (homeRoute model)
+        , pageRoute (s "create") (createRoute model)
+        ]
 
 
 pageRoute : Parser a b -> a -> Parser (b -> c) c
