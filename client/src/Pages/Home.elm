@@ -4,7 +4,7 @@ import Html exposing (..)
 import Html.Attributes exposing (class, href)
 import Html.Events exposing (..)
 import Http
-import Json.Decode exposing (Decoder, field, int, list, map3, string)
+import Json.Decode exposing (Decoder, bool, field, int, list, map3, string)
 import Redirection exposing (Redirection)
 import Session
 
@@ -46,10 +46,12 @@ init data =
 
 type InternalMsg
     = Refresh
+    | DeleteRedirection Redirection
 
 
 type ExternalMsg
     = GotRedirections (Result Http.Error (List Redirection))
+    | DeletedRedirection (Result Http.Error DeletedResponse)
 
 
 type Msg
@@ -60,16 +62,31 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Internal Refresh ->
-            ( { model | status = Loading }, fetchRedirections { model | session = Session.withoutRedirections model.session } )
+        Internal internal ->
+            case internal of
+                Refresh ->
+                    ( { model | status = Loading }, fetchRedirections { model | session = Session.withoutRedirections model.session } )
 
-        External (GotRedirections result) ->
-            case result of
-                Ok redirections ->
-                    ( { model | status = Success redirections }, Cmd.none )
+                DeleteRedirection red ->
+                    ( model, Cmd.map External <| deleteRedirection red )
 
-                Err _ ->
-                    ( { model | status = Failure }, Cmd.none )
+        External externalMsg ->
+            case externalMsg of
+                GotRedirections result ->
+                    case result of
+                        Ok redirections ->
+                            ( { model | status = Success redirections }, Cmd.none )
+
+                        Err _ ->
+                            ( { model | status = Failure }, Cmd.none )
+
+                DeletedRedirection _ ->
+                    case model.session.redirections of
+                        Just redirections ->
+                            ( { model | status = Success redirections }, Cmd.none )
+
+                        Nothing ->
+                            ( { model | status = Success [] }, Cmd.none )
 
 
 
@@ -118,7 +135,7 @@ redirectionRow red =
             ]
         , td []
             [ a [ href ("/edit/" ++ String.fromInt red.id), class "small button" ] [ text "Edit" ]
-            , button [ class "small delete-button" ] [ text "Delete" ]
+            , button [ class "small delete-button", onClick <| (DeleteRedirection >> Internal) red ] [ text "Delete" ]
             ]
         ]
 
@@ -149,3 +166,28 @@ redirectionDecoder =
             (field "short_url" string)
             (field "id" int)
         )
+
+
+type alias DeletedResponse =
+    { error : Bool, message : String, id : Int }
+
+
+deleteRedirection : Redirection -> Cmd ExternalMsg
+deleteRedirection red =
+    Http.request
+        { url = "/api/v1/redirections/" ++ String.fromInt red.id
+        , body = Http.emptyBody
+        , expect = Http.expectJson DeletedRedirection deletedDecoder
+        , method = "DELETE"
+        , headers = []
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+deletedDecoder : Decoder DeletedResponse
+deletedDecoder =
+    map3 DeletedResponse
+        (field "error" bool)
+        (field "message" string)
+        (field "id" int)

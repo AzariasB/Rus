@@ -1,4 +1,4 @@
-module Session exposing (Data, default, removeFlash, setFlash, setRedirections, withoutRedirections)
+module Session exposing (Data, default, mapRedirections, removeFlash, setFlash, setRedirections, withoutRedirections)
 
 import Browser.Navigation as Nav
 import Redirection exposing (Redirection)
@@ -36,3 +36,21 @@ setRedirections data redirections =
 withoutRedirections : Data -> Data
 withoutRedirections data =
     { data | redirections = Nothing }
+
+
+mapRedirections : Data -> (List Redirection -> List Redirection) -> Data
+mapRedirections data mapper =
+    case data.redirections of
+        Nothing ->
+            data
+
+        Just redirections ->
+            let
+                result =
+                    mapper redirections
+            in
+            if List.isEmpty result then
+                { data | redirections = Nothing }
+
+            else
+                { data | redirections = Just result }

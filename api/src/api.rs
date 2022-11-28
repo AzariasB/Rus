@@ -22,6 +22,13 @@ struct CreateResponse {
     message: String,
 }
 
+#[derive(Serialize)]
+struct DeletedResponse {
+    error: bool,
+    message: String,
+    id: i32,
+}
+
 pub async fn home(data: web::Data<AppState>) -> Result<HttpResponse, Error> {
     let template = &data.templates;
     let ctx = tera::Context::new();
@@ -67,7 +74,7 @@ pub async fn create(
         }));
     }
 
-    Mutation::create_redirection(
+    Ok(Mutation::create_redirection(
         conn,
         CreateMutation::new(
             form.long_url,
@@ -80,17 +87,17 @@ pub async fn create(
     )
     .await
     .map(|res| {
-        Ok(Json(CreateResponse {
+        Json(CreateResponse {
             error: false,
             message: format!("Url {} created", res.short_url.unwrap()),
-        }))
+        })
     })
     .unwrap_or_else(|err| {
-        Ok(Json(CreateResponse {
+        Json(CreateResponse {
             error: true,
             message: err.to_string(),
-        }))
-    })
+        })
+    }))
 }
 
 pub async fn redirect(
@@ -176,15 +183,27 @@ pub async fn update(
         .finish())
 }
 
-pub async fn delete(data: web::Data<AppState>, id: web::Path<i32>) -> Result<HttpResponse, Error> {
+pub async fn delete(
+    data: web::Data<AppState>,
+    id: web::Path<i32>,
+) -> Result<impl Responder, Error> {
     let conn = &data.conn;
     let id = id.into_inner();
 
-    Mutation::delete_redirection(conn, id)
+    Ok(Mutation::delete_redirection(conn, id)
         .await
-        .expect("could not delete redirection");
-
-    Ok(HttpResponse::Found()
-        .append_header(("location", "/"))
-        .finish())
+        .map(|_| {
+            Json(DeletedResponse {
+                error: false,
+                message: "Deleted".to_owned(),
+                id,
+            })
+        })
+        .unwrap_or_else(|err| {
+            Json(DeletedResponse {
+                error: true,
+                message: err.to_string(),
+                id,
+            })
+        }))
 }

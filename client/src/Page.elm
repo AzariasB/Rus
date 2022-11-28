@@ -2,11 +2,13 @@ module Page exposing (Model, Msg(..), init, update, view)
 
 import Browser exposing (Document)
 import Browser.Navigation as Nav
+import Convert exposing (httpErrorToString)
 import Html exposing (Html, a, div, footer, h1, header, text)
 import Html.Attributes exposing (class, href)
 import Pages.Create as C
 import Pages.Error as E
 import Pages.Home as H
+import Redirection exposing (Redirection)
 import Session
 import Url exposing (Url)
 import Url.Parser as Parser exposing ((</>), Parser, oneOf, s, top)
@@ -102,20 +104,58 @@ viewFooter =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg ({ page, session } as model) =
     case ( msg, page ) of
-        ( GotHomeMsg homeMsg, Home h ) ->
+        ( GotHomeMsg homeMsg, Home homeModel ) ->
             case homeMsg of
                 H.External external ->
                     case external of
                         H.GotRedirections result ->
                             case result of
                                 Ok redirections ->
-                                    H.update homeMsg h |> updateWith { model | session = Session.setRedirections model.session redirections } Home GotHomeMsg
+                                    H.update homeMsg homeModel
+                                        |> updateWith
+                                            { model
+                                                | session = Session.setRedirections model.session redirections
+                                            }
+                                            Home
+                                            GotHomeMsg
 
                                 _ ->
-                                    H.update homeMsg h |> updateWith model Home GotHomeMsg
+                                    H.update homeMsg homeModel |> updateWith model Home GotHomeMsg
+
+                        H.DeletedRedirection result ->
+                            case result of
+                                Ok confirmation ->
+                                    if confirmation.error then
+                                        H.update homeMsg homeModel
+                                            |> updateWith
+                                                { model
+                                                    | session = Session.setFlash model.session confirmation.message
+                                                }
+                                                Home
+                                                GotHomeMsg
+
+                                    else
+                                        let
+                                            nwSession =
+                                                Session.mapRedirections (Session.setFlash model.session "Redirection deleted") <|
+                                                    removeRedirectionById confirmation.id
+                                        in
+                                        H.update homeMsg homeModel
+                                            |> updateWith { model | session = nwSession }
+                                                Home
+                                                GotHomeMsg
+
+                                Err err ->
+                                    H.update homeMsg homeModel
+                                        |> updateWith
+                                            { model
+                                                | session = Session.setFlash model.session ("Http Error. " ++ httpErrorToString err)
+                                            }
+                                            Home
+                                            GotHomeMsg
 
                 _ ->
-                    H.update homeMsg h |> updateWith model Home GotHomeMsg
+                    H.update homeMsg homeModel |> updateWith model Home GotHomeMsg
 
         ( GotCreateMsg createMsg, Create c ) ->
             case createMsg of
@@ -131,7 +171,11 @@ update msg ({ page, session } as model) =
                                         ( { model | session = Session.setFlash session res.message }, Cmd.none )
 
                                     else
-                                        ( { model | session = Session.setFlash session "Link created" }, Nav.pushUrl model.session.nav "/" )
+                                        let
+                                            nwSession =
+                                                Session.withoutRedirections <| Session.setFlash session "Link created"
+                                        in
+                                        ( { model | session = nwSession }, Nav.pushUrl model.session.nav "/" )
 
                                 Err _ ->
                                     let
@@ -156,6 +200,11 @@ update msg ({ page, session } as model) =
 
         ( _, _ ) ->
             ( model, Cmd.none )
+
+
+removeRedirectionById : Int -> List Redirection -> List Redirection
+removeRedirectionById id list =
+    List.filter (\r -> id /= r.id) list
 
 
 updateWith : Model -> (subModel -> Page) -> (subMsg -> Msg) -> ( subModel, Cmd subMsg ) -> ( Model, Cmd Msg )
