@@ -50,6 +50,7 @@ button.link:hover {
   color: #0fa0ce;
 }
 
+.button.small,
 button.small {
   height: 20px;
   padding: 0 10px;

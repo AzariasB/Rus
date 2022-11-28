@@ -13,13 +13,13 @@ import Session
 
 
 type Status
-    = CreatingUrl String
-    | SubmittingUrl String
+    = CreatingUrl
+    | SubmittingUrl
     | Error String
 
 
 type alias Model =
-    { status : Status, session : Session.Data }
+    { status : Status, input : String, session : Session.Data }
 
 
 type InternalMsg
@@ -29,6 +29,7 @@ type InternalMsg
 
 type ExternalMsg
     = CreatedLink (Result Http.Error CreateResponse)
+    | CreateLinkError String
 
 
 type Msg
@@ -42,7 +43,7 @@ type Msg
 
 init : Session.Data -> ( Model, Cmd Msg )
 init session =
-    ( { status = CreatingUrl "", session = session }, Cmd.none )
+    ( { status = CreatingUrl, input = "", session = session }, Cmd.none )
 
 
 
@@ -52,8 +53,8 @@ init session =
 view : Model -> Html Msg
 view model =
     let
-        ( disabled, url ) =
-            inputAttributes model
+        disabled =
+            disableInput model.status
     in
     div [ A.class "container" ]
         [ div [ A.class "twelve columns" ]
@@ -61,7 +62,7 @@ view model =
                 [ A.type_ "text"
                 , A.placeholder "Url to shorten"
                 , A.autofocus (not disabled)
-                , A.value url
+                , A.value model.input
                 , A.disabled disabled
                 , A.class "u-full-width"
                 , E.onInput (TypedLink >> Internal)
@@ -70,32 +71,20 @@ view model =
             ]
         , div [ A.class "twelve columns" ]
             [ div [ A.class "two columns" ]
-                [ a [ A.href "/" ]
-                    [ button []
-                        [ text "Cancel"
-                        ]
+                [ a [ A.href "/", A.class "button" ]
+                    [ text "Cancel"
                     ]
                 ]
-            , div [ A.class "eight columns" ]
-                [ div [ A.class "two columns" ]
-                    [ button [ E.onClick <| Internal ClickedCreateLink, A.disabled disabled ] [ text "Create redirection" ]
-                    ]
+            , div [ A.class "ten columns" ]
+                [ button [ E.onClick <| Internal ClickedCreateLink, A.disabled disabled ] [ text "Create redirection" ]
                 ]
             ]
         ]
 
 
-inputAttributes : Model -> ( Bool, String )
-inputAttributes model =
-    case model.status of
-        CreatingUrl url ->
-            ( False, url )
-
-        SubmittingUrl url ->
-            ( True, url )
-
-        Error url ->
-            ( False, url )
+disableInput : Status -> Bool
+disableInput status =
+    status == SubmittingUrl
 
 
 
@@ -105,14 +94,14 @@ inputAttributes model =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( msg, model.status ) of
-        ( Internal ClickedCreateLink, CreatingUrl url ) ->
-            ( model, Cmd.map External <| createLink url )
+        ( Internal ClickedCreateLink, CreatingUrl ) ->
+            ( model, Cmd.map External <| createLink model.input )
 
-        ( External (CreatedLink _), _ ) ->
-            ( model, Cmd.none )
+        ( Internal (TypedLink _), _ ) ->
+            ( { model | status = CreatingUrl }, Cmd.none )
 
-        ( Internal (TypedLink data), _ ) ->
-            ( { model | status = CreatingUrl data }, Cmd.none )
+        ( External (CreateLinkError err), _ ) ->
+            ( { model | status = Error err }, Cmd.none )
 
         ( _, _ ) ->
             ( model, Cmd.none )

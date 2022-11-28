@@ -17,5 +17,6 @@ pub fn init(cfg: &mut web::ServiceConfig) {
                 ),
             )
             .route("/{id}", get().to(api::redirect)),
-    );
+    )
+    .default_service(web::route().to(api::home));
 }

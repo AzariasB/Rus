@@ -1,7 +1,7 @@
 module Pages.Home exposing (Model, Msg, fetchRedirections, init, update, view)
 
 import Html exposing (..)
-import Html.Attributes exposing (class, href, style)
+import Html.Attributes exposing (class, href)
 import Html.Events exposing (..)
 import Http
 import Json.Decode exposing (Decoder, field, int, list, map3, string)
@@ -86,7 +86,7 @@ view model =
                         ]
                     , tbody [] (List.map redirectionRow redirections)
                     ]
-                , a [ href "/create" ] [ button [ style "display" "block" ] [ text "Shorten url" ] ]
+                , a [ href "/create", class "button" ] [ text "Shorten url" ]
                 ]
 
 
@@ -101,7 +101,7 @@ redirectionRow red =
             [ a [ href red.short_url ] [ text red.short_url ]
             ]
         , td []
-            [ a [ href ("#edit/" ++ String.fromInt red.id) ] [ button [ class "small" ] [ text "Edit" ] ]
+            [ a [ href ("/edit/" ++ String.fromInt red.id), class "small button" ] [ text "Edit" ]
             , button [ class "small delete-button" ] [ text "Delete" ]
             ]
         ]

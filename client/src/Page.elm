@@ -119,7 +119,7 @@ update msg ({ page, session } as model) =
                                         ( { model | session = Session.setFlash session res.message }, Cmd.none )
 
                                     else
-                                        ( model, Nav.pushUrl model.session.nav "/" )
+                                        ( { model | session = Session.setFlash session "Link created" }, Nav.pushUrl model.session.nav "/" )
 
                                 Err _ ->
                                     let
@@ -127,6 +127,9 @@ update msg ({ page, session } as model) =
                                             { model | session = Session.setFlash model.session "Http error" }
                                     in
                                     ( flashMsg, Cmd.none )
+
+                        _ ->
+                            ( model, Cmd.none )
 
         ( ClickedLink req, _ ) ->
             case req of
