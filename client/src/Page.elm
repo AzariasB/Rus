@@ -103,7 +103,19 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg ({ page, session } as model) =
     case ( msg, page ) of
         ( GotHomeMsg homeMsg, Home h ) ->
-            H.update homeMsg h |> updateWith model Home GotHomeMsg
+            case homeMsg of
+                H.External external ->
+                    case external of
+                        H.GotRedirections result ->
+                            case result of
+                                Ok redirections ->
+                                    H.update homeMsg h |> updateWith { model | session = Session.setRedirections model.session redirections } Home GotHomeMsg
+
+                                _ ->
+                                    H.update homeMsg h |> updateWith model Home GotHomeMsg
+
+                _ ->
+                    H.update homeMsg h |> updateWith model Home GotHomeMsg
 
         ( GotCreateMsg createMsg, Create c ) ->
             case createMsg of

@@ -1,4 +1,4 @@
-module Session exposing (Data, default, removeFlash, setFlash)
+module Session exposing (Data, default, removeFlash, setFlash, setRedirections, withoutRedirections)
 
 import Browser.Navigation as Nav
 import Redirection exposing (Redirection)
@@ -26,3 +26,13 @@ setFlash data flash =
 removeFlash : Data -> Data
 removeFlash data =
     { data | flash = Nothing }
+
+
+setRedirections : Data -> List Redirection -> Data
+setRedirections data redirections =
+    { data | redirections = Just redirections }
+
+
+withoutRedirections : Data -> Data
+withoutRedirections data =
+    { data | redirections = Nothing }

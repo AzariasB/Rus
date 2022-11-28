@@ -1,4 +1,4 @@
-module Pages.Home exposing (Model, Msg, fetchRedirections, init, update, view)
+module Pages.Home exposing (ExternalMsg(..), InternalMsg, Model, Msg(..), fetchRedirections, init, update, view)
 
 import Html exposing (..)
 import Html.Attributes exposing (class, href)
@@ -25,35 +25,51 @@ type alias Model =
 
 init : Session.Data -> ( Model, Cmd Msg )
 init data =
-    ( { status = Loading, session = data }, fetchRedirections )
+    let
+        status =
+            case data.redirections of
+                Just redirections ->
+                    Success redirections
+
+                Nothing ->
+                    Loading
+
+        model =
+            { status = status, session = data }
+    in
+    ( model, fetchRedirections model )
 
 
 
 -- UPDATE
 
 
-type Msg
+type InternalMsg
     = Refresh
-    | GotRedirections (Result Http.Error (List Redirection))
-    | EditRedirection Redirection
+
+
+type ExternalMsg
+    = GotRedirections (Result Http.Error (List Redirection))
+
+
+type Msg
+    = Internal InternalMsg
+    | External ExternalMsg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Refresh ->
-            ( { model | status = Loading }, fetchRedirections )
+        Internal Refresh ->
+            ( { model | status = Loading }, fetchRedirections { model | session = Session.withoutRedirections model.session } )
 
-        GotRedirections result ->
+        External (GotRedirections result) ->
             case result of
                 Ok redirections ->
                     ( { model | status = Success redirections }, Cmd.none )
 
                 Err _ ->
                     ( { model | status = Failure }, Cmd.none )
-
-        EditRedirection _ ->
-            ( model, Cmd.none )
 
 
 
@@ -66,7 +82,7 @@ view model =
         Failure ->
             div []
                 [ text "Failed to load the shortened links. "
-                , button [ onClick Refresh ] [ text "Try Again!" ]
+                , button [ onClick <| Internal Refresh ] [ text "Try Again!" ]
                 ]
 
         Loading ->
@@ -111,12 +127,17 @@ redirectionRow red =
 -- HTTP
 
 
-fetchRedirections : Cmd Msg
-fetchRedirections =
-    Http.get
-        { url = "/api/v1/redirections"
-        , expect = Http.expectJson GotRedirections redirectionDecoder
-        }
+fetchRedirections : Model -> Cmd Msg
+fetchRedirections model =
+    case model.session.redirections of
+        Just _ ->
+            Cmd.none
+
+        Nothing ->
+            Http.get
+                { url = "/api/v1/redirections"
+                , expect = Http.expectJson (GotRedirections >> External) redirectionDecoder
+                }
 
 
 redirectionDecoder : Decoder (List Redirection)

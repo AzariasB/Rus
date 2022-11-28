@@ -97,8 +97,8 @@ update msg model =
         ( Internal ClickedCreateLink, CreatingUrl ) ->
             ( model, Cmd.map External <| createLink model.input )
 
-        ( Internal (TypedLink _), _ ) ->
-            ( { model | status = CreatingUrl }, Cmd.none )
+        ( Internal (TypedLink link), _ ) ->
+            ( { model | status = CreatingUrl, input = link }, Cmd.none )
 
         ( External (CreateLinkError err), _ ) ->
             ( { model | status = Error err }, Cmd.none )
