@@ -1,12 +1,12 @@
-module Pages.Home exposing (ExternalMsg(..), InternalMsg, Model, Msg(..), fetchRedirections, init, update, view)
+module Pages.Home exposing (ExternalMsg(..), InternalMsg, Model, Msg(..), init, update, view)
 
 import Html exposing (..)
 import Html.Attributes exposing (class, href)
 import Html.Events exposing (..)
 import Http
-import Json.Decode exposing (Decoder, bool, field, int, list, map3, string)
+import Json.Decode exposing (Decoder, bool, field, int, map3, string)
 import Redirection exposing (Redirection)
-import Session
+import Session exposing (fetchRedirections)
 
 
 
@@ -37,7 +37,7 @@ init data =
         model =
             { status = status, session = data }
     in
-    ( model, fetchRedirections model )
+    ( model, fetchRedirections model.session (GotRedirections >> External) )
 
 
 
@@ -65,7 +65,7 @@ update msg model =
         Internal internal ->
             case internal of
                 Refresh ->
-                    ( { model | status = Loading }, fetchRedirections { model | session = Session.withoutRedirections model.session } )
+                    ( { model | status = Loading }, fetchRedirections model.session (GotRedirections >> External) )
 
                 DeleteRedirection red ->
                     ( model, Cmd.map External <| deleteRedirection red )
@@ -142,30 +142,6 @@ redirectionRow red =
 
 
 -- HTTP
-
-
-fetchRedirections : Model -> Cmd Msg
-fetchRedirections model =
-    case model.session.redirections of
-        Just _ ->
-            Cmd.none
-
-        Nothing ->
-            Http.get
-                { url = "/api/v1/redirections"
-                , expect = Http.expectJson (GotRedirections >> External) redirectionDecoder
-                }
-
-
-redirectionDecoder : Decoder (List Redirection)
-redirectionDecoder =
-    list
-        (map3
-            Redirection
-            (field "long_url" string)
-            (field "short_url" string)
-            (field "id" int)
-        )
 
 
 type alias DeletedResponse =

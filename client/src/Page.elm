@@ -5,11 +5,12 @@ import Browser.Navigation as Nav
 import Convert exposing (httpErrorToString)
 import Html exposing (Html, a, div, footer, h1, header, text)
 import Html.Attributes exposing (class, href)
+import Http
 import Pages.Edit as C
 import Pages.Error as E
 import Pages.Home as H
 import Redirection exposing (Redirection)
-import Session
+import Session exposing (fetchRedirections)
 import Url exposing (Url)
 import Url.Parser as Parser exposing ((</>), Parser, oneOf, s, string, top)
 
@@ -32,6 +33,7 @@ type Msg
     | GotHomeMsg H.Msg
     | GotEditMsg C.Msg
     | GotErrorMsg E.Msg
+    | LoadedEditRedirections String (Result Http.Error (List Redirection))
 
 
 init : Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -178,11 +180,7 @@ update msg ({ page, session } as model) =
                                         ( { model | session = nwSession }, Nav.pushUrl model.session.nav "/" )
 
                                 Err err ->
-                                    let
-                                        flashMsg =
-                                            { model | session = Session.setFlash model.session <| "Http error : " ++ httpErrorToString err }
-                                    in
-                                    ( flashMsg, Cmd.none )
+                                    showHttpError model err
 
                         _ ->
                             ( model, Cmd.none )
@@ -198,8 +196,21 @@ update msg ({ page, session } as model) =
         ( ChangedUrl url, _ ) ->
             route url model
 
+        ( LoadedEditRedirections short_url result, _ ) ->
+            case result of
+                Ok redirections ->
+                    editRoute { model | session = Session.setRedirections model.session redirections } short_url
+
+                Err error ->
+                    showHttpError model error
+
         ( _, _ ) ->
             ( model, Cmd.none )
+
+
+showHttpError : Model -> Http.Error -> ( Model, Cmd Msg )
+showHttpError model err =
+    ( { model | session = Session.setFlash model.session <| "Http error : " ++ httpErrorToString err }, Cmd.none )
 
 
 removeRedirectionById : Int -> List Redirection -> List Redirection
@@ -259,7 +270,7 @@ editRoute model short_url =
     in
     case redirection of
         Nothing ->
-            homeRoute model
+            ( model, fetchRedirections model.session (LoadedEditRedirections short_url) )
 
         Just red ->
             updateWith model Edit GotEditMsg (C.init model.session ( red.long_url, C.editLink red.short_url ))
