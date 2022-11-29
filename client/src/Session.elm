@@ -1,4 +1,4 @@
-module Session exposing (Data, default, mapRedirections, removeFlash, setFlash, setRedirections, withoutRedirections)
+module Session exposing (Data, default, findRedirection, mapRedirections, removeFlash, setFlash, setRedirections, withoutRedirections)
 
 import Browser.Navigation as Nav
 import Redirection exposing (Redirection)
@@ -45,12 +45,9 @@ mapRedirections data mapper =
             data
 
         Just redirections ->
-            let
-                result =
-                    mapper redirections
-            in
-            if List.isEmpty result then
-                { data | redirections = Nothing }
+            { data | redirections = Just <| mapper redirections }
 
-            else
-                { data | redirections = Just result }
+
+findRedirection : Data -> String -> Maybe Redirection
+findRedirection data short_url =
+    Maybe.andThen (List.filter (\red -> red.short_url == short_url) >> List.head) data.redirections

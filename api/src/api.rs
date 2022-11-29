@@ -167,20 +167,30 @@ pub async fn redirect(
 
 pub async fn update(
     data: web::Data<AppState>,
-    id: web::Path<i32>,
+    id: web::Path<String>,
     redirection_form: web::Form<CreateForm>,
-) -> Result<HttpResponse, Error> {
+) -> Result<impl Responder, Error> {
     let conn = &data.conn;
     let form = redirection_form.into_inner();
-    let id = id.into_inner();
+    let short_url = id.into_inner();
 
-    Mutation::update_redirection_by_id(conn, UpdateMutation::new(id, form.long_url))
-        .await
-        .expect("could not edit redirection");
-
-    Ok(HttpResponse::Found()
-        .append_header(("location", "/"))
-        .finish())
+    Ok(Mutation::update_redirection_by_id(
+        conn,
+        UpdateMutation::new(short_url.to_owned(), form.long_url),
+    )
+    .await
+    .map(|res| {
+        Json(CreateResponse {
+            error: false,
+            message: format!("Url {} successfully edited", res.short_url),
+        })
+    })
+    .unwrap_or_else(|err| {
+        Json(CreateResponse {
+            error: true,
+            message: err.to_string(),
+        })
+    }))
 }
 
 pub async fn delete(

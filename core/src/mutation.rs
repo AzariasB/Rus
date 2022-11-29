@@ -16,13 +16,16 @@ pub struct CreateMutation {
 }
 
 pub struct UpdateMutation {
-    id: i32,
+    short_url: String,
     long_url: String,
 }
 
 impl UpdateMutation {
-    pub fn new(id: i32, long_url: String) -> UpdateMutation {
-        UpdateMutation { id, long_url }
+    pub fn new(short_url: String, long_url: String) -> UpdateMutation {
+        UpdateMutation {
+            short_url,
+            long_url,
+        }
     }
 }
 
@@ -77,14 +80,12 @@ impl Mutation {
         db: &DbConn,
         update: UpdateMutation,
     ) -> Result<redirection::Model, DbErr> {
-        let redirection: redirection::ActiveModel = Redirection::find_by_id(update.id)
-            .one(db)
+        let found = Query::find_redirection_by_short_url(db, update.short_url)
             .await?
-            .ok_or_else(|| DbErr::Custom("Cannot find redirection.".to_owned()))
-            .map(Into::into)?;
+            .ok_or_else(|| DbErr::Custom("Cannot find redirection.".to_owned()))?;
 
         redirection::ActiveModel {
-            id: redirection.id,
+            id: Set(found.id),
             long_url: Set(update.long_url),
             ..Default::default()
         }

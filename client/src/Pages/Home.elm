@@ -134,7 +134,7 @@ redirectionRow red =
             [ a [ href red.short_url ] [ text red.short_url ]
             ]
         , td []
-            [ a [ href ("/edit/" ++ String.fromInt red.id), class "small button" ] [ text "Edit" ]
+            [ a [ href ("/edit/" ++ red.short_url), class "small button" ] [ text "Edit" ]
             , button [ class "small delete-button", onClick <| (DeleteRedirection >> Internal) red ] [ text "Delete" ]
             ]
         ]

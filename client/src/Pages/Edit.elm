@@ -1,4 +1,4 @@
-module Pages.Create exposing (ExternalMsg(..), Model, Msg(..), init, update, view)
+module Pages.Edit exposing (ExternalMsg(..), Model, Msg(..), createLink, editLink, init, update, view)
 
 import Html exposing (Html, a, button, div, input, text)
 import Html.Attributes as A
@@ -19,16 +19,16 @@ type Status
 
 
 type alias Model =
-    { status : Status, input : String, session : Session.Data }
+    { status : Status, input : String, session : Session.Data, submitter : String -> Cmd ExternalMsg }
 
 
 type InternalMsg
-    = ClickedCreateLink
+    = ClickedSubmit
     | TypedLink String
 
 
 type ExternalMsg
-    = CreatedLink (Result Http.Error CreateResponse)
+    = EditJson (Result Http.Error EditRespnose)
     | CreateLinkError String
 
 
@@ -41,9 +41,15 @@ type Msg
 -- init
 
 
-init : Session.Data -> ( Model, Cmd Msg )
-init session =
-    ( { status = CreatingUrl, input = "", session = session }, Cmd.none )
+init : Session.Data -> ( String, String -> Cmd ExternalMsg ) -> ( Model, Cmd Msg )
+init session ( baseData, submitter ) =
+    ( { status = CreatingUrl
+      , input = baseData
+      , session = session
+      , submitter = submitter
+      }
+    , Cmd.none
+    )
 
 
 
@@ -76,7 +82,7 @@ view model =
                     ]
                 ]
             , div [ A.class "ten columns" ]
-                [ button [ E.onClick <| Internal ClickedCreateLink, A.disabled disabled ] [ text "Create redirection" ]
+                [ button [ E.onClick <| Internal ClickedSubmit, A.disabled disabled ] [ text "Save" ]
                 ]
             ]
         ]
@@ -94,8 +100,8 @@ disableInput status =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( msg, model.status ) of
-        ( Internal ClickedCreateLink, CreatingUrl ) ->
-            ( model, Cmd.map External <| createLink model.input )
+        ( Internal ClickedSubmit, CreatingUrl ) ->
+            ( model, Cmd.map External <| model.submitter model.input )
 
         ( Internal (TypedLink link), _ ) ->
             ( { model | status = CreatingUrl, input = link }, Cmd.none )
@@ -112,7 +118,7 @@ createLink model =
     Http.request
         { url = "/api/v1/redirections"
         , body = Http.stringBody "application/x-www-form-urlencoded" ("long_url=" ++ model)
-        , expect = Http.expectJson CreatedLink createDecoder
+        , expect = Http.expectJson EditJson editDecoder
         , method = "POST"
         , headers = []
         , timeout = Nothing
@@ -120,14 +126,27 @@ createLink model =
         }
 
 
-type alias CreateResponse =
+editLink : String -> String -> Cmd ExternalMsg
+editLink short_url long_url =
+    Http.request
+        { url = "/api/v1/redirections/" ++ short_url
+        , body = Http.stringBody "application/x-www-form-urlencoded" ("long_url=" ++ long_url)
+        , expect = Http.expectJson EditJson editDecoder
+        , method = "PUT"
+        , headers = []
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+type alias EditRespnose =
     { error : Bool
     , message : String
     }
 
 
-createDecoder : Decoder CreateResponse
-createDecoder =
-    map2 CreateResponse
+editDecoder : Decoder EditRespnose
+editDecoder =
+    map2 EditRespnose
         (field "error" bool)
         (field "message" string)

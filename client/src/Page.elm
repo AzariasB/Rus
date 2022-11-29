@@ -5,13 +5,13 @@ import Browser.Navigation as Nav
 import Convert exposing (httpErrorToString)
 import Html exposing (Html, a, div, footer, h1, header, text)
 import Html.Attributes exposing (class, href)
-import Pages.Create as C
+import Pages.Edit as C
 import Pages.Error as E
 import Pages.Home as H
 import Redirection exposing (Redirection)
 import Session
 import Url exposing (Url)
-import Url.Parser as Parser exposing ((</>), Parser, oneOf, s, top)
+import Url.Parser as Parser exposing ((</>), Parser, oneOf, s, string, top)
 
 
 type alias Model =
@@ -22,7 +22,7 @@ type alias Model =
 
 type Page
     = Home H.Model
-    | Create C.Model
+    | Edit C.Model
     | Error E.Model
 
 
@@ -30,7 +30,7 @@ type Msg
     = ChangedUrl Url
     | ClickedLink Browser.UrlRequest
     | GotHomeMsg H.Msg
-    | GotCreateMsg C.Msg
+    | GotEditMsg C.Msg
     | GotErrorMsg E.Msg
 
 
@@ -60,8 +60,8 @@ view model =
         Home subModel ->
             displayPage "Home" GotHomeMsg <| H.view subModel
 
-        Create subModel ->
-            displayPage "Create" GotCreateMsg <| C.view subModel
+        Edit subModel ->
+            displayPage "Create" GotEditMsg <| C.view subModel
 
         Error subModel ->
             displayPage "Error" GotErrorMsg <| E.view subModel
@@ -157,14 +157,14 @@ update msg ({ page, session } as model) =
                 _ ->
                     H.update homeMsg homeModel |> updateWith model Home GotHomeMsg
 
-        ( GotCreateMsg createMsg, Create c ) ->
-            case createMsg of
+        ( GotEditMsg editMsg, Edit editModel ) ->
+            case editMsg of
                 (C.Internal _) as internal ->
-                    C.update internal c |> updateWith model Create GotCreateMsg
+                    C.update internal editModel |> updateWith model Edit GotEditMsg
 
                 C.External ext ->
                     case ext of
-                        C.CreatedLink result ->
+                        C.EditJson result ->
                             case result of
                                 Ok res ->
                                     if res.error then
@@ -173,14 +173,14 @@ update msg ({ page, session } as model) =
                                     else
                                         let
                                             nwSession =
-                                                Session.withoutRedirections <| Session.setFlash session "Link created"
+                                                Session.withoutRedirections <| Session.setFlash session "Saved"
                                         in
                                         ( { model | session = nwSession }, Nav.pushUrl model.session.nav "/" )
 
-                                Err _ ->
+                                Err err ->
                                     let
                                         flashMsg =
-                                            { model | session = Session.setFlash model.session "Http error" }
+                                            { model | session = Session.setFlash model.session <| "Http error : " ++ httpErrorToString err }
                                     in
                                     ( flashMsg, Cmd.none )
 
@@ -205,11 +205,6 @@ update msg ({ page, session } as model) =
 removeRedirectionById : Int -> List Redirection -> List Redirection
 removeRedirectionById id list =
     List.filter (\r -> id /= r.id) list
-
-
-updateWith : Model -> (subModel -> Page) -> (subMsg -> Msg) -> ( subModel, Cmd subMsg ) -> ( Model, Cmd Msg )
-updateWith model toModel toMsg ( subModel, subCmd ) =
-    ( { model | page = toModel subModel }, Cmd.map toMsg subCmd )
 
 
 preRouting : Url -> Model -> ( Model, Cmd Msg )
@@ -237,6 +232,7 @@ routeParser model =
     oneOf
         [ pageRoute top (homeRoute model)
         , pageRoute (s "create") (createRoute model)
+        , pageRoute (s "edit" </> string) (editRoute model)
         ]
 
 
@@ -247,17 +243,28 @@ pageRoute parser handler =
 
 homeRoute : Model -> ( Model, Cmd Msg )
 homeRoute model =
-    let
-        ( hModel, hMsg ) =
-            H.init model.session
-    in
-    ( { model | page = Home hModel }, Cmd.map GotHomeMsg hMsg )
+    updateWith model Home GotHomeMsg (H.init model.session)
 
 
 createRoute : Model -> ( Model, Cmd Msg )
 createRoute model =
+    updateWith model Edit GotEditMsg (C.init model.session ( "", C.createLink ))
+
+
+editRoute : Model -> String -> ( Model, Cmd Msg )
+editRoute model short_url =
     let
-        ( cModel, cMsg ) =
-            C.init model.session
+        redirection =
+            Session.findRedirection model.session short_url
     in
-    ( { model | page = Create cModel }, Cmd.map GotCreateMsg cMsg )
+    case redirection of
+        Nothing ->
+            homeRoute model
+
+        Just red ->
+            updateWith model Edit GotEditMsg (C.init model.session ( red.long_url, C.editLink red.short_url ))
+
+
+updateWith : Model -> (subModel -> Page) -> (subMsg -> Msg) -> ( subModel, Cmd subMsg ) -> ( Model, Cmd Msg )
+updateWith model toModel toMsg ( subModel, subCmd ) =
+    ( { model | page = toModel subModel }, Cmd.map toMsg subCmd )
