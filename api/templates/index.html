@@ -1,25 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="utf-8" />
     <title>Rus - Rust Url Shortener</title>
     <meta name="description" content="Rust - Rust Url Shortener" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <link
-      href="//fonts.googleapis.com/css?family=Raleway:400,300,600"
-      rel="stylesheet"
-      type="text/css"
+            href="//fonts.googleapis.com/css?family=Raleway:400,300,600"
+            rel="stylesheet"
+            type="text/css"
     />
     <link rel="stylesheet" href="/static/css/normalize.css" />
     <link rel="stylesheet" href="/static/css/skeleton.css" />
     <link rel="stylesheet" href="/static/css/style.css" />
     <link rel="icon" type="image/png" href="/static/images/favicon.png" />
     <script src="/static/scripts/main.js"></script>
-  </head>
-  <body>
-    <div class="container">
-      {% block content %}{% endblock content %}
-    </div>
-  </body>
+</head>
+<body>
+<script>
+      var app = Elm.Main.init({
+        node: document.getElementById('rus-app')
+      });
+    </script>
+</body>
 </html>

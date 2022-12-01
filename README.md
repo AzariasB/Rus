@@ -5,7 +5,6 @@ The project structure is largely inspired from the [sea orm actix example](https
 Notable libs used :
 - Actix for the web server
 - Sea ORM to handle the database queries
-- Tera (for now) to render html templates
 
 ## Use with docker
 
@@ -28,10 +27,5 @@ Then go with a web browser to the address localhost:8000 to see if everything's 
 - [x] Update last access date when the link is clicked
 - [x] Use the correct logging system
 - [x] Handle link expiring: delete from database, and cache
-
-## TODO v2
-- [ ] Use Elm as a frontend framework
-- [ ] Add statistics to each newly created link
-- [ ] Add account system to see the link stats
-- [ ] An admin can delete all links
-- [ ] A user can delete their link
+- [x] Use Elm as a frontend framework
+- [ ] Improve overall style 

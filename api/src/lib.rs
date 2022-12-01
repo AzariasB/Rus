@@ -10,7 +10,6 @@ use actix_web::{middleware, web, App, HttpServer};
 use listenfd::ListenFd;
 use log::{error, info, warn, LevelFilter};
 use serde::Deserialize;
-use tera::Tera;
 
 use crate::conf::RusConf;
 use crate::jobs::remove_expired_redirections;
@@ -37,7 +36,6 @@ const DEFAULT_LINK_LIFETIME: i64 = 90;
 
 #[derive(Debug, Clone)]
 pub struct AppState {
-    templates: Tera,
     conn: DatabaseConnection,
     link_lifetime: Duration,
 }
@@ -97,11 +95,8 @@ async fn start() -> std::io::Result<()> {
 
     Migrator::up(&conn, None).await.unwrap();
 
-    // load tera templates and build app state
-    let templates = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*")).unwrap();
     let link_lifetime = Duration::days(RusConf::LinkDaysLifeTime.get_i64_or(DEFAULT_LINK_LIFETIME));
     let state = AppState {
-        templates,
         conn,
         link_lifetime,
     };

@@ -1,6 +1,7 @@
 use crate::{errors, AppCache, AppState, CreateForm, Params, DEFAULT_REDIRECTIONS_PER_PAGE};
+use actix_files::NamedFile;
 use actix_web::web::Json;
-use actix_web::{error, web, Error, HttpRequest, HttpResponse, Responder};
+use actix_web::{web, Error, HttpRequest, HttpResponse, Responder};
 use entity::redirection::Model;
 use log::warn;
 use rus_core::{CreateMutation, Mutation, Query, UpdateMutation};
@@ -28,15 +29,11 @@ struct DeletedResponse {
     message: String,
     id: i32,
 }
+const HTML_INDEX_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/templates/index.html");
 
-pub async fn home(data: web::Data<AppState>) -> Result<HttpResponse, Error> {
-    let template = &data.templates;
-    let ctx = tera::Context::new();
-
-    let body = template
-        .render("index.html.tera", &ctx)
-        .map_err(|_| error::ErrorInternalServerError("Template error"))?;
-    Ok(HttpResponse::Ok().content_type("text/html").body(body))
+pub async fn home() -> Result<NamedFile, Error> {
+    let html_index = NamedFile::open_async(HTML_INDEX_PATH).await?;
+    Ok(html_index)
 }
 
 pub async fn list(req: HttpRequest, data: web::Data<AppState>) -> Result<impl Responder, Error> {
@@ -101,10 +98,11 @@ pub async fn create(
 }
 
 pub async fn redirect(
+    request: HttpRequest,
     data: web::Data<AppState>,
     cache: web::Data<Mutex<AppCache>>,
     id: web::Path<String>,
-) -> Result<HttpResponse, Error> {
+) -> Result<impl Responder, Error> {
     let short = id.into_inner();
 
     {
@@ -161,7 +159,8 @@ pub async fn redirect(
             .append_header(("location", final_url))
             .finish())
     } else {
-        home(data).await
+        let index_file = home().await?;
+        Ok(index_file.into_response(&request))
     }
 }
 
